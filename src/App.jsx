@@ -165,7 +165,9 @@ function LoginForm({ onLoginSuccess, onSwitchToRegister }) {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    const currentStatus = userRecords && userRecords.length > 0 ? userRecords[0].status : null;
+    // Ambil status dan bersihkan dari tanda petik jika ada
+    let rawStatus = userRecords && userRecords.length > 0 ? userRecords[0].status : null;
+    const currentStatus = rawStatus ? rawStatus.replace(/['"]/g, '').trim().toLowerCase() : null;
 
     if (statusError || !currentStatus || currentStatus === 'pending') {
       await supabase.auth.signOut();
@@ -185,6 +187,10 @@ function LoginForm({ onLoginSuccess, onSwitchToRegister }) {
     if (currentStatus === 'approved') {
       setLoading(false);
       onLoginSuccess();
+    } else {
+      await supabase.auth.signOut();
+      setError('STATUS AKUN TIDAK VALID. HUBUNGI ADMIN!');
+      setLoading(false);
     }
   };
 

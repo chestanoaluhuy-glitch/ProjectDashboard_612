@@ -4,65 +4,121 @@ const cors = require('cors');
 
 const app = express();
 const PORT = 5000;
-
-// Middleware agar frontend React (Port 5173) bisa mengakses API ini tanpa diblokir browser
 app.use(cors());
 app.use(express.json());
 
-// URL Google Apps Script Web App yang sudah terhubung dengan kolom spreadsheet PT INKA asli
-const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxXwJga2wF5LPFw8N4evX_KilbRCIT1drSnYvQMd-0xPCTySpcnMxGHWZsRA-V_qms5IQ/exec?sheet=fracas';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybXSjLwXQBY3TTDQYnL-m3j3Jlxo-pK0RciJPmXsA-EmVcFZJtn3HIbuYKv4k3xEdZ/exec';
 
-// 1. ENDPOINT UNTUK MENAMPILKAN OPSI DROPDOWN FILTER
+const cleanStr = (val) => (val !== undefined && val !== null ? String(val).trim() : '');
+
+// 1. ENDPOINT DATA UTAMA
+app.get('/api/sheets-data', async (req, res) => {
+    const targetSheet = req.query.targetSheet ? req.query.targetSheet.toUpperCase() : 'FRACAS';
+    
+    try {
+        const response = await axios.get(`${GOOGLE_SCRIPT_URL}?targetSheet=${targetSheet}`, { 
+            maxRedirects: 5,
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        const rawRows = response.data && response.data.success ? response.data.data : [];
+
+        res.status(200).json({
+            success: true,
+            nama_tab: targetSheet,
+            total: rawRows.length,
+            data: rawRows
+        });
+    } catch (error) {
+        console.error(`Error pada Endpoint Data (${targetSheet}):`, error.message);
+        res.status(500).json({ success: false, data: [] });
+    }
+});
+
+// 2. ENDPOINT DROPDOWN FILTERS UNTUK SEMUA TAB
 app.get('/api/filters', async (req, res) => {
-    try {
-        // Ditambahkan maxRedirects agar axios aman mengikuti pengalihan URL dari Google Script
-        const response = await axios.get(GOOGLE_SHEET_URL, { maxRedirects: 5 });
-        
-        // Validasi: Pastikan objek filters ada, jika tidak ada kirim objek kosong agar React tidak crash
-        const filterData = response.data && response.data.filters ? response.data.filters : {};
+    const targetSheet = req.query.targetSheet ? req.query.targetSheet.toUpperCase() : 'DCR';
 
-        res.status(200).json({
-            success: true,
-            data: filterData
+    try {
+        const response = await axios.get(`${GOOGLE_SCRIPT_URL}?targetSheet=${targetSheet}`, { 
+            maxRedirects: 5,
+            headers: { 'Accept': 'application/json' }
         });
+        
+        const rawRows = response.data && response.data.success ? response.data.data : [];
+
+        // Penampung nilai unik tiap tab
+        const sets = {};
+
+        if (targetSheet === 'DCR') {
+            sets.namaProyek = new Set();
+            sets.pengirim = new Set();
+            sets.penerima = new Set();
+            sets.statusDcr = new Set();
+
+            rawRows.forEach(item => {
+                const pr = cleanStr(item["Nama Proyek"] || item["Proyek"]);
+                const pg = cleanStr(item["Pengirim"]);
+                const pn = cleanStr(item["Penerima"]);
+                const st = cleanStr(item["Status DCR"] || item["Status"]);
+                if (pr) sets.namaProyek.add(pr);
+                if (pg) sets.pengirim.add(pg);
+                if (pn) sets.penerima.add(pn);
+                if (st) sets.statusDcr.add(st);
+            });
+        } else if (targetSheet === 'NCR') {
+            sets.projek = new Set();
+            sets.unitTujuan = new Set();
+            sets.groupInspektor = new Set();
+            sets.status = new Set();
+
+            rawRows.forEach(item => {
+                const pr = cleanStr(item["Nama Proyek"] || item["Projek"] || item["Proyek"]);
+                const ut = cleanStr(item["Unit Tujuan"] || item["Seksi/Unit"]);
+                const gi = cleanStr(item["Group Inspektor"] || item["Inspektor QC"]);
+                const st = cleanStr(item["Status NCR"] || item["Status"]);
+                if (pr) sets.projek.add(pr);
+                if (ut) sets.unitTujuan.add(ut);
+                if (gi) sets.groupInspektor.add(gi);
+                if (st) sets.status.add(st);
+            });
+        } else if (targetSheet === 'VRB') {
+    sets.ts = new Set();
+    sets.noKa = new Set();
+    sets.part = new Set();
+    sets.brand = new Set();
+
+    rawRows.forEach(item => {
+        // Ambil nilai tanpa khawatir huruf besar/kecil/spasi
+        const getVal = (...keys) => {
+            for (let k of keys) {
+                if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
+            }
+            return '';
+        };
+
+        const t = String(getVal('TS', 'Train Set', 'Trainset', 'ts')).trim();
+        const nk = String(getVal('No. KA', 'No KA', 'no_ka')).trim();
+        const pt = String(getVal('Part', 'part')).trim();
+        const br = String(getVal('Brand', 'brand')).trim();
+
+        if (t) sets.ts.add(t);
+        if (nk) sets.noKa.add(nk);
+        if (pt) sets.part.add(pt);
+        if (br) sets.brand.add(br);
+    });
+}
+
+        const resultObj = {};
+        Object.keys(sets).forEach(k => {
+            resultObj[k] = Array.from(sets[k]).sort();
+        });
+
+        res.status(200).json({ success: true, data: resultObj });
     } catch (error) {
-        console.error("Error pada Endpoint Filter:", error.message);
-        res.status(500).json({ 
-            success: false, 
-            message: "Gagal mengambil data filter", 
-            error: error.message,
-            data: {} // Kirim objek kosong sebagai pengaman frontend
-        });
+        console.error("Error Filter:", error.message);
+        res.status(500).json({ success: false, data: {} });
     }
 });
 
-// 2. ENDPOINT UNTUK MENAMPILKAN SELURUH RAW DATA BARIS TABEL & GRAFIK
-app.get('/api/fracas-data', async (req, res) => {
-    try {
-        const response = await axios.get(GOOGLE_SHEET_URL, { maxRedirects: 5 });
-        
-        // Validasi: Pastikan objek rows berbentuk array, jika tidak ada kirim array kosong []
-        const rowsData = response.data && response.data.rows ? response.data.rows : [];
-
-        res.status(200).json({
-            success: true,
-            data: rowsData
-        });
-    } catch (error) {
-        console.error("Error pada Endpoint Data Utama:", error.message);
-        res.status(500).json({ 
-            success: false, 
-            message: "Gagal mengambil data utama FRACAS", 
-            error: error.message,
-            data: [] // Kirim array kosong sebagai pengaman frontend agar tabel tidak blank
-        });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`==================================================`);
-    console.log(`🚀 Server Backend FRACAS Aktif Sempurna!`);
-    console.log(`🔗 Akses API Data   : http://localhost:${PORT}/api/fracas-data`);
-    console.log(`🔗 Akses API Filter : http://localhost:${PORT}/api/filters`);
-    console.log(`==================================================`);
-});
+app.listen(PORT, () => console.log(`🚀 Server Multi-Dashboard PT INKA Aktif di Port ${PORT}`));

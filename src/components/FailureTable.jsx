@@ -1,137 +1,149 @@
 import React from 'react';
 
-export default function FailureTable({ data }) {
+export default function FailureTable({ data = [] }) {
   
-  // Fungsi Helper Ganda: Menghilangkan sisa-sisa whitespace atau string 'null' yang tidak valid
-  const bersihkanTeks = (str) => {
-    if (!str || str === '-' || str === 'null' || str === 'undefined') return '-';
-    return str.toString().trim();
+  // Helper fleksibel untuk ambil properti object
+  const getVal = (item, ...keys) => {
+    if (!item) return '';
+    const normalizedItem = {};
+    Object.keys(item).forEach(k => {
+      const cleanKey = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!normalizedItem[cleanKey] && item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+        normalizedItem[cleanKey] = String(item[k]).trim();
+      }
+    });
+
+    for (let k of keys) {
+      const cleanTarget = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalizedItem[cleanTarget] !== undefined) {
+        return normalizedItem[cleanTarget];
+      }
+    }
+    return '';
   };
 
-  // 1. Fungsi Helper: Memformat Tanggal atau menjaga teks Nomor Tiket/Dokumen PT INKA
-  const formatTanggalRapih = (dateString) => {
-    const teksBersih = bersihkanTeks(dateString);
-    if (teksBersih === '-') return '-';
-    
-    // Jika string berisi format nomor registrasi dokumen (contoh: KA/MID/193/2025)
-    if (teksBersih.includes('/') && teksBersih.split('/').length > 2) {
-      return teksBersih; 
-    }
-    
-    try {
-      const date = new Date(teksBersih);
-      if (isNaN(date.getTime())) return teksBersih; 
+  // 1. FORMATTER TANGGAL LOKAL (WIB / Local Time)
+  const formatDate = (dateStr) => {
+    if (!dateStr || dateStr === '-') return '-';
+    let str = String(dateStr).trim();
 
-      const opsi = { day: 'numeric', month: 'short', year: 'numeric' };
-      return date.toLocaleDateString('id-ID', opsi); 
-    } catch (e) {
-      return teksBersih;
+    // Jika berupa ISO string dari Google Sheets (misal: 2025-10-31T17:00:00.000Z)
+    if (str.includes('T') || str.includes('Z')) {
+      const dateObj = new Date(str);
+      if (!isNaN(dateObj.getTime())) {
+        // Gunakan format Indonesia
+        return dateObj.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
     }
+
+    // Jika format string YYYY-MM-DD standar
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      const [year, month, day] = str.split('-').map(Number);
+      const bulanIndo = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agust', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${day} ${bulanIndo[month - 1]} ${year}`;
+    }
+
+    return str;
   };
 
-  // 2. Fungsi Helper: Memastikan format waktu tampil bersih (HH:MM)
-  const formatWaktuRapih = (timeString) => {
-    const teksBersih = bersihkanTeks(timeString);
-    if (teksBersih === '-') return '-';
-    
-    if (teksBersih.includes('GMT') || teksBersih.length > 15) {
-      try {
-        const date = new Date(teksBersih);
-        if (!isNaN(date.getTime())) {
-          const jam = String(date.getHours()).padStart(2, '0');
-          const menit = String(date.getMinutes()).padStart(2, '0');
-          return `${jam}:${menit}`;
-        }
-      } catch (e) {}
+  // 2. FORMATTER JAM LOKAL (WIB / Local Time)
+  const formatTime = (timeStr, rawDateStr) => {
+    if (!timeStr || timeStr === '-') return '-';
+    let str = String(timeStr).trim();
+
+    // Jika timeStr mengandung tanggal ISO
+    if (str.includes('T')) {
+      const dateObj = new Date(str);
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }).replace('.', ':');
+      }
     }
-    return teksBersih;
+
+    // Jika waktu disimpan terpisah dari tanggal ISO utama
+    if (rawDateStr && rawDateStr.includes('T') && /^\d{1,2}:\d{2}/.test(str)) {
+      // Jika jamnya murni misal "06:00" atau "6:00", langsung tampilkan saja tanpa diolah tanggalnya
+      return str.length === 4 ? `0${str}` : str;
+    }
+
+    // Jika berupa angka HH:MM:SS biasa
+    if (str.length >= 4 && str.includes(':')) {
+      const parts = str.split(':');
+      const hh = parts[0].padStart(2, '0');
+      const mm = parts[1].padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+
+    return str;
   };
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col h-[290px] w-full overflow-hidden text-slate-800">
-      
-      {/* ================= HEADER TABEL UTAMA ================= */}
-      <div className="bg-[#e15243] text-white text-[10px] font-bold uppercase tracking-wider p-2.5 grid grid-cols-12 gap-3 items-center flex-shrink-0 select-none">
-        <div className="col-span-1 text-center">No</div>
-        <div className="col-span-2 text-center">Tgl Kejadian</div>
-        <div className="col-span-1 text-center">Waktu</div>
-        <div className="col-span-3 text-left">Temuan</div>
-        <div className="col-span-2 text-left">Detail Temuan</div>
-        <div className="col-span-1 text-center">Tgl Mulai</div>
-        <div className="col-span-2 text-left">Solusi / Penanganan Selesai</div>
-      </div>
+    <div className="w-full bg-white font-sans text-slate-800">
+      <table className="w-full text-left border-collapse text-[10px]">
+        {/* HEADER TABEL */}
+        <thead>
+          <tr className="bg-[#e15243] text-white uppercase text-[9.5px] font-bold tracking-wider divide-x divide-white/20">
+            <th className="p-2 text-center w-[40px]">No</th>
+            <th className="p-2 text-center w-[100px]">Tgl Kejadian</th>
+            <th className="p-2 text-center w-[80px]">Waktu Kejadian</th>
+            <th className="p-2 w-[230px]">Temuan</th>
+            <th className="p-2 text-center w-[120px]">Detail Temuan</th>
+            <th className="p-2 text-center w-[100px]">Tgl Mulai TDL</th>
+            <th className="p-2 w-[250px]">Solusi / Penanganan</th>
+            <th className="p-2 text-center w-[100px]">Tgl Selesai TDL</th>
+          </tr>
+        </thead>
 
-      {/* ================= BODY ISI DATA TABEL ================= */}
-      <div className="overflow-y-auto flex-1 divide-y divide-slate-100 bg-white text-[11px]">
-        {!data || data.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 font-semibold flex flex-col items-center justify-center h-full gap-2">
-            <span>Tidak ada record data temuan yang cocok.</span>
-          </div>
-        ) : (
-          data.map((item, index) => {
-            const statusUpper = item.status ? item.status.toString().toUpperCase() : 'OPEN';
-            
-            return (
-              <div 
-                key={index} 
-                className="grid grid-cols-12 gap-3 p-2.5 items-start hover:bg-slate-50 transition-colors font-medium border-b border-slate-100 last:border-b-0"
-              >
-                {/* 1. Nomor Urut */}
-                <div className="col-span-1 text-center text-slate-400 font-mono font-bold pt-0.5">
-                  {index + 1}.
-                </div>
+        {/* BODY TABEL */}
+        <tbody className="divide-y divide-slate-200">
+          {data && data.length > 0 ? (
+            data.map((row, index) => {
+              // Extract Raw Data
+              const rawTglKejadian = getVal(row, 'tgl_kejadian', 'Tgl Kejadian', 'Tanggal Kejadian', 'Tgl & waktu', 'Date');
+              const rawWaktu = getVal(row, 'waktu_kejadian', 'Waktu Kejadian', 'Jam Kejadian', 'Waktu');
+              
+              const temuan = getVal(row, 'temuan', 'Uraian Temuan', 'Deskripsi Temuan') || '-';
+              const detailTemuan = getVal(row, 'detail_temuan', 'Detail Temuan', 'Detail Deskripsi Permasalahan / Kegiatan', 'Detail') || '-';
+              
+              const rawTglMulaiTDL = getVal(row, 'tgl_mulai_tdl', 'Tgl Mulai TDL', 'Tanggal Mulai TDL', 'Tgl TDL', 'Tgl Mulai', 'Mulai TDL');
+              const solusi = getVal(row, 'solusi_penanganan', 'Solusi/Penanganan', 'Solusi', 'Penanganan', 'Tindakan') || '-';
+              const rawTglSelesaiTDL = getVal(row, 'tgl_selesai_tdl', 'Tgl Selesai TDL', 'Tanggal Selesai TDL', 'Tgl Selesai', 'Selesai TDL');
 
-                {/* 2. Tanggal Kejadian / Nomor Registrasi Dokumen */}
-                <div className="col-span-2 text-center text-slate-600 font-semibold pt-0.5 break-words font-mono tracking-tight">
-                  {formatTanggalRapih(item.tglKejadian || item.tgl_kejadian)}
-                </div>
+              // Format Output ke Waktu Lokal (WIB)
+              const tglKejadian = formatDate(rawTglKejadian);
+              const waktuKejadian = formatTime(rawWaktu, rawTglKejadian);
+              const tglMulaiTDL = rawTglMulaiTDL ? formatDate(rawTglMulaiTDL) : tglKejadian;
+              const tglSelesaiTDL = rawTglSelesaiTDL ? formatDate(rawTglSelesaiTDL) : tglKejadian;
 
-                {/* 3. Waktu */}
-                <div className="col-span-1 text-center text-slate-500 font-mono pt-0.5">
-                  {formatWaktuRapih(item.waktuKejadian || item.waktu)}
-                </div>
-
-                {/* 4. Deskripsi Temuan */}
-                <div className="col-span-3 text-left text-slate-800 font-bold whitespace-pre-line leading-relaxed break-words">
-                  {bersihkanTeks(item.temuan)}
-                </div>
-
-                {/* 5. Detail Temuan */}
-                <div className="col-span-2 text-left text-slate-500 pt-0.5 break-words leading-relaxed">
-                  {bersihkanTeks(item.detailTemuan || item.detail || item.klasifikasi || 'Operasional')}
-                </div>
-
-                {/* 6. Tanggal Mulai TDL */}
-                <div className="col-span-1 text-center text-slate-500 pt-0.5 break-words font-mono">
-                  {formatTanggalRapih(item.tglMulaiTdl || item.tglMulai)}
-                </div>
-
-                {/* 7. Solusi / Penanganan Selesai + Status Badge */}
-                <div className="col-span-2 text-left flex flex-col gap-1.5 min-w-0">
-                  <span className="text-slate-600 font-semibold whitespace-pre-line leading-relaxed break-words">
-                    {bersihkanTeks(item.solusi || item.penanganan)}
-                  </span>
-                  
-                  {/* Badge Indikator Status */}
-                  <div className="flex items-center mt-0.5">
-                    {statusUpper === 'CLOSE' ? (
-                      <span className="inline-block bg-green-50 text-green-600 border border-green-200 text-[8.5px] font-extrabold px-1.5 py-0.5 rounded font-mono select-none shadow-sm">
-                        CLOSE
-                      </span>
-                    ) : (
-                      <span className="inline-block bg-red-50 text-red-600 border border-red-200 text-[8.5px] font-extrabold px-1.5 py-0.5 rounded font-mono select-none shadow-sm">
-                        OPEN
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            );
-          })
-        )}
-      </div>
-
+              return (
+                <tr key={index} className="hover:bg-slate-50 transition-colors divide-x divide-slate-100">
+                  <td className="p-2 text-center font-mono font-bold text-slate-500">{index + 1}.</td>
+                  <td className="p-2 text-center font-medium whitespace-nowrap">{tglKejadian}</td>
+                  <td className="p-2 text-center font-mono font-bold text-slate-600">{waktuKejadian}</td>
+                  <td className="p-2 font-medium leading-relaxed">{temuan}</td>
+                  <td className="p-2 text-center font-medium text-slate-600">{detailTemuan}</td>
+                  <td className="p-2 text-center font-medium whitespace-nowrap">{tglMulaiTDL}</td>
+                  <td className="p-2 font-medium leading-relaxed">{solusi}</td>
+                  <td className="p-2 text-center font-medium whitespace-nowrap">{tglSelesaiTDL}</td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan="8" className="p-4 text-center text-slate-400 font-bold">
+                Tidak ada data log yang tersedia.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

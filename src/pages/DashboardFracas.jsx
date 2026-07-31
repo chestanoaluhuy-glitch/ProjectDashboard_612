@@ -9,8 +9,8 @@ import AnalyticsGrid from '../components/AnalyticsGrid';
 import FailureTable from '../components/FailureTable';
 import LineChartFailure from '../components/LineChartFailure';
 
-// 📌 HUBUNGKAN KE BACKEND EXPRESS (NODE.JS) KITA
-const BACKEND_API_URL = "http://localhost:5000/api/sheets-data?targetSheet=FRACAS";
+// 📌 HUBUNGKAN KE BACKEND EXPRESS (VERCEL PUBLIK)
+const BACKEND_API_URL = "https://project-dashboard-612.vercel.app/api/sheets-data?targetSheet=FRACAS";
 
 export default function FracasDashboard({ onBackToPortal }) {
   const [activeFilters, setActiveFilters] = useState({
@@ -25,7 +25,7 @@ export default function FracasDashboard({ onBackToPortal }) {
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. 🚀 FETCH DATA DARI BACKEND EXPRESS LOCAL
+  // 1. 🚀 FETCH DATA DARI BACKEND EXPRESS VERCEL
   useEffect(() => {
     setLoading(true);
     axios.get(BACKEND_API_URL)

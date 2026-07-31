@@ -3,13 +3,19 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+
 app.use(cors());
 app.use(express.json());
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybXSjLwXQBY3TTDQYnL-m3j3Jlxo-pK0RciJPmXsA-EmVcFZJtn3HIbuYKv4k3xEdZ/exec';
 
 const cleanStr = (val) => (val !== undefined && val !== null ? String(val).trim() : '');
+
+// Root Endpoint untuk Cek Kesehatan Server
+app.get('/', (req, res) => {
+    res.send('🚀 Backend Multi-Dashboard PT INKA jalan dengan lancar di Vercel!');
+});
 
 // 1. ENDPOINT DATA UTAMA
 app.get('/api/sheets-data', async (req, res) => {
@@ -83,31 +89,30 @@ app.get('/api/filters', async (req, res) => {
                 if (st) sets.status.add(st);
             });
         } else if (targetSheet === 'VRB') {
-    sets.ts = new Set();
-    sets.noKa = new Set();
-    sets.part = new Set();
-    sets.brand = new Set();
+            sets.ts = new Set();
+            sets.noKa = new Set();
+            sets.part = new Set();
+            sets.brand = new Set();
 
-    rawRows.forEach(item => {
-        // Ambil nilai tanpa khawatir huruf besar/kecil/spasi
-        const getVal = (...keys) => {
-            for (let k of keys) {
-                if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
-            }
-            return '';
-        };
+            rawRows.forEach(item => {
+                const getVal = (...keys) => {
+                    for (let k of keys) {
+                        if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
+                    }
+                    return '';
+                };
 
-        const t = String(getVal('TS', 'Train Set', 'Trainset', 'ts')).trim();
-        const nk = String(getVal('No. KA', 'No KA', 'no_ka')).trim();
-        const pt = String(getVal('Part', 'part')).trim();
-        const br = String(getVal('Brand', 'brand')).trim();
+                const t = String(getVal('TS', 'Train Set', 'Trainset', 'ts')).trim();
+                const nk = String(getVal('No. KA', 'No KA', 'no_ka')).trim();
+                const pt = String(getVal('Part', 'part')).trim();
+                const br = String(getVal('Brand', 'brand')).trim();
 
-        if (t) sets.ts.add(t);
-        if (nk) sets.noKa.add(nk);
-        if (pt) sets.part.add(pt);
-        if (br) sets.brand.add(br);
-    });
-}
+                if (t) sets.ts.add(t);
+                if (nk) sets.noKa.add(nk);
+                if (pt) sets.part.add(pt);
+                if (br) sets.brand.add(br);
+            });
+        }
 
         const resultObj = {};
         Object.keys(sets).forEach(k => {
@@ -121,4 +126,10 @@ app.get('/api/filters', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server Multi-Dashboard PT INKA Aktif di Port ${PORT}`));
+// Khusus Local Machine (Laptop)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`🚀 Server Multi-Dashboard PT INKA Aktif di Port ${PORT}`));
+}
+
+// WAJIB UNTUK VERCEL DEPLOYMENT
+module.exports = app;

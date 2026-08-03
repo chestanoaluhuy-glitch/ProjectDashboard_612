@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import { supabase } from './lib/supabaseClient';
 
 import Portal from './pages/Portal';
@@ -110,7 +110,7 @@ function RegisterForm({ onSwitchToLogin }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black text-xs uppercase tracking-widest py-3 rounded shadow-lg mt-4 transition-colors cursor-pointer"
+            className="w-full text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black text-xs uppercase tracking-widest py-3 rounded shadow-lg mt-4 transition-colors"
           >
             {loading ? 'PROCESSING...' : 'SUBMIT REGISTRATION →'}
           </button>
@@ -121,7 +121,7 @@ function RegisterForm({ onSwitchToLogin }) {
             Sudah punya akun?{' '}
             <button 
               onClick={onSwitchToLogin} 
-              className="text-red-400 font-bold hover:underline ml-1 uppercase cursor-pointer"
+              className="text-red-400 font-bold hover:underline ml-1 uppercase"
             >
               Kembali ke Login
             </button>
@@ -247,7 +247,7 @@ function LoginForm({ onLoginSuccess, onSwitchToRegister }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black text-xs uppercase tracking-widest py-3 rounded shadow-lg mt-4 transition-colors cursor-pointer"
+            className="w-full text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 font-black text-xs uppercase tracking-widest py-3 rounded shadow-lg mt-4 transition-colors"
           >
             {loading ? 'PROCESSING...' : 'LOGIN TO SYSTEM →'}
           </button>
@@ -258,7 +258,7 @@ function LoginForm({ onLoginSuccess, onSwitchToRegister }) {
             Belum punya akses akun?{' '}
             <button 
               onClick={onSwitchToRegister} 
-              className="text-red-400 font-bold hover:underline ml-1 uppercase cursor-pointer"
+              className="text-red-400 font-bold hover:underline ml-1 uppercase"
             >
               Daftar / Request Akun
             </button>
@@ -274,51 +274,12 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authView, setAuthView] = useState('login'); // 'login' | 'register'
   const [currentPage, setCurrentPage] = useState('portal');
-  const [initializing, setInitializing] = useState(true);
-
-  // Auto-check Sesi Supabase saat Pertama Kali App Dimuat
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Cek kembali status di DB
-        const { data: userRecords } = await supabase
-          .from('login_history')
-          .select('status')
-          .eq('user_email', session.user.email)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        let rawStatus = userRecords && userRecords.length > 0 ? userRecords[0].status : null;
-        const currentStatus = rawStatus ? rawStatus.replace(/['"]/g, '').trim().toLowerCase() : null;
-
-        if (currentStatus === 'approved') {
-          setIsLoggedIn(true);
-        } else {
-          await supabase.auth.signOut();
-          setIsLoggedIn(false);
-        }
-      }
-      setInitializing(false);
-    };
-
-    checkSession();
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsLoggedIn(false);
     setCurrentPage('portal');
   };
-
-  // Loading Screen saat Check Sesi Selesai
-  if (initializing) {
-    return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white font-black text-xs tracking-widest uppercase">
-        ⚡ INITIALIZING PORTAL SYSTEM...
-      </div>
-    );
-  }
 
   // Jika belum login
   if (!isLoggedIn) {

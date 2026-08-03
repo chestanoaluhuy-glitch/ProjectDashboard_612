@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 
 // 📌 IMPORT KOMPONEN HEADER REUSABLE
 import Header from '../components/Header';
@@ -8,23 +9,57 @@ import Header from '../components/Header';
 import LineChartCustom from '../components/LineChartCustom';
 import BarChartHorizontal from '../components/BarChartHorizontal';
 
-// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke Vercel backend)
+// 🌐 BASE URL API BACKEND
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-dashboard-612.vercel.app';
 
+// Helper Fetcher Function untuk TanStack Query
+const fetchVrbData = async () => {
+  const axiosConfig = {
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  };
+
+  const [resData, resFilters] = await Promise.all([
+    axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=VRB`, axiosConfig),
+    axios.get(`${API_BASE_URL}/api/filters?targetSheet=VRB`, axiosConfig)
+  ]);
+
+  let mappedRecords = [];
+  if (resData.data && resData.data.success) {
+    const raw = resData.data.data || [];
+    
+    // Helper Mapper Kolom VRB
+    mappedRecords = raw.map(item => {
+      const getVal = (...keys) => {
+        for (let k of keys) {
+          if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
+        }
+        return '-';
+      };
+
+      return {
+        ts: getVal('TS', 'Train Set', 'Trainset', 'ts'),
+        noKa: getVal('No. KA', 'No KA', 'no_ka'),
+        part: getVal('Part', 'part'),
+        part1: getVal('Part 1', 'Part1', 'part_1'),
+        part2: getVal('Part 2', 'Part2', 'part_2'),
+        part3: getVal('Part 3', 'Part3', 'part_3'),
+        part4: getVal('Part 4', 'Part4', 'part_4'),
+        brand: getVal('Brand', 'brand'),
+        tgl: getVal('Tanggal', 'Tgl', 'Release Date', 'tgl')
+      };
+    });
+  }
+
+  return {
+    vrbRecords: mappedRecords,
+    options: resFilters.data?.success ? (resFilters.data.data || {}) : { ts: [], noKa: [], part: [], brand: [] }
+  };
+};
+
 export default function VrbDashboard({ onBackToPortal }) {
-  const [vrbRecords, setVrbRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Opsi Dropdown Filter
-  const [options, setOptions] = useState({
-    ts: [],
-    noKa: [],
-    part: [],
-    brand: []
-  });
-
-  // State Filter
+  // State Filter Aktif
   const [filters, setFilters] = useState({
     ts: '',
     noKa: '',
@@ -32,74 +67,29 @@ export default function VrbDashboard({ onBackToPortal }) {
     brand: ''
   });
 
-  // 1. FETCH DATA & FILTERS
-  useEffect(() => {
-    setLoading(true);
+  // 🚀 TANSTACK QUERY: Mengelola Caching & Fetching Otomatis
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['vrbData'],      // Unique Key untuk cache VRB
+    queryFn: fetchVrbData,      // Fungsi pengambil data
+  });
 
-    // Config header khusus ngrok agar tidak terblokir warning page
-    const axiosConfig = {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    };
+  const vrbRecords = data?.vrbRecords || [];
+  const options = data?.options || { ts: [], noKa: [], part: [], brand: [] };
 
-    Promise.all([
-      axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=VRB`, axiosConfig),
-      axios.get(`${API_BASE_URL}/api/filters?targetSheet=VRB`, axiosConfig)
-    ]).then(([resData, resFilters]) => {
-      if (resData.data && resData.data.success) {
-        const raw = resData.data.data || [];
-        
-        // Helper Mapper Kolom VRB
-        const mapped = raw.map(item => {
-          const getVal = (...keys) => {
-            for (let k of keys) {
-              if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
-            }
-            return '-';
-          };
-
-          return {
-            ts: getVal('TS', 'Train Set', 'Trainset', 'ts'),
-            noKa: getVal('No. KA', 'No KA', 'no_ka'),
-            part: getVal('Part', 'part'),
-            part1: getVal('Part 1', 'Part1', 'part_1'),
-            part2: getVal('Part 2', 'Part2', 'part_2'),
-            part3: getVal('Part 3', 'Part3', 'part_3'),
-            part4: getVal('Part 4', 'Part4', 'part_4'),
-            brand: getVal('Brand', 'brand'),
-            tgl: getVal('Tanggal', 'Tgl', 'Release Date', 'tgl')
-          };
-        });
-
-        setVrbRecords(mapped);
-        setFilteredRecords(mapped);
-      }
-
-      if (resFilters.data && resFilters.data.success) {
-        setOptions(resFilters.data.data || {});
-      }
-      setLoading(false);
-    }).catch(err => {
-      console.error("Gagal memuat data VRB:", err);
-      setLoading(false);
-    });
-  }, []);
-
-  // 2. LOGIKA FILTERING DATA
-  useEffect(() => {
+  // 1. LOGIKA FILTERING DATA (Optimasi dengan useMemo)
+  const filteredRecords = useMemo(() => {
     let res = [...vrbRecords];
     if (filters.ts) res = res.filter(r => String(r.ts).trim() === String(filters.ts).trim());
     if (filters.noKa) res = res.filter(r => String(r.noKa).trim() === String(filters.noKa).trim());
     if (filters.part) res = res.filter(r => String(r.part).trim() === String(filters.part).trim());
     if (filters.brand) res = res.filter(r => String(r.brand).trim() === String(filters.brand).trim());
-    setFilteredRecords(res);
+    return res;
   }, [filters, vrbRecords]);
 
   const handleFilterChange = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
 
-  // 3. 📈 AGREGASI UNTUK LINE CHART (RECORD COUNT TREND TANGGAL)
-  const getLineData = () => {
+  // 2. 📈 AGREGASI UNTUK LINE CHART (Disimpan di Memo)
+  const lineData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     
     const counts = {};
@@ -115,10 +105,10 @@ export default function VrbDashboard({ onBackToPortal }) {
       name: key,
       value: counts[key]
     })).slice(0, 15);
-  };
+  }, [filteredRecords]);
 
-  // 4. 📊 AGREGASI UNTUK BAR CHART HORIZONTAL (DISTRIBUSI BRAND)
-  const getBrandBarData = () => {
+  // 3. 📊 AGREGASI UNTUK BAR CHART HORIZONTAL (Disimpan di Memo)
+  const brandBarData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     const counts = {};
     filteredRecords.forEach(r => {
@@ -129,7 +119,7 @@ export default function VrbDashboard({ onBackToPortal }) {
       .map(key => ({ name: key, value: counts[key] }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
-  };
+  }, [filteredRecords]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 select-none relative flex flex-col justify-between border-[16px] border-amber-600 gap-4" style={{ backgroundImage: 'linear-gradient(to bottom, #ffffff, #fffbeb)' }}>
@@ -144,10 +134,10 @@ export default function VrbDashboard({ onBackToPortal }) {
         </button>
       </div>
 
-      {/* 🟢 HEADER BRANDING KITA (OTOMATIS TAMPIL LOGO INKA + DANANTARA & JUDUL VRB) */}
+      {/* HEADER BRANDING */}
       <Header type="VRB" />
 
-      {/* DROPDOWN FILTERS SAMA DENGAN GAMBAR LOOKER VRB */}
+      {/* DROPDOWN FILTERS */}
       <div className="grid grid-cols-12 gap-4">
         {/* Filter Kiri: TS & No. KA */}
         <div className="col-span-6 grid grid-cols-2 gap-3">
@@ -176,7 +166,7 @@ export default function VrbDashboard({ onBackToPortal }) {
         </div>
       </div>
 
-      {/* CONTENT GRID (50:50 MATCH GAMBAR LOOKER) */}
+      {/* CONTENT GRID */}
       <div className="grid grid-cols-12 gap-4 flex-1 items-stretch">
         
         {/* TABEL PART (KANAN KIRI 6 COLS - KIRI) */}
@@ -194,8 +184,10 @@ export default function VrbDashboard({ onBackToPortal }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {loading ? (
+                {isLoading ? (
                   <tr><td colSpan="6" className="p-4 text-center font-bold text-amber-600">Memuat Data VRB...</td></tr>
+                ) : isError ? (
+                  <tr><td colSpan="6" className="p-4 text-center font-bold text-red-500">Gagal memuat data VRB. Silakan refresh.</td></tr>
                 ) : filteredRecords.length > 0 ? (
                   filteredRecords.map((r, i) => (
                     <tr key={i} className="hover:bg-amber-50">
@@ -224,7 +216,7 @@ export default function VrbDashboard({ onBackToPortal }) {
           <div className="bg-white border border-slate-300 rounded p-2 shadow-sm text-center flex flex-col justify-between h-44">
             <span className="text-[10px] font-black text-slate-700 uppercase">RECORD COUNT TREND</span>
             <div className="flex-1 w-full flex items-center justify-center">
-              <LineChartCustom data={getLineData()} />
+              <LineChartCustom data={lineData} />
             </div>
           </div>
 
@@ -232,7 +224,7 @@ export default function VrbDashboard({ onBackToPortal }) {
           <div className="bg-white border border-slate-300 rounded p-2 shadow-sm text-center flex flex-col justify-between h-44">
             <span className="text-[10px] font-black text-slate-700 uppercase">BRAND DISTRIBUTION</span>
             <div className="flex-1 w-full flex items-center justify-center">
-              <BarChartHorizontal data={getBrandBarData()} />
+              <BarChartHorizontal data={brandBarData} />
             </div>
           </div>
         </div>

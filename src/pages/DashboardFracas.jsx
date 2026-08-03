@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 
 // JALUR IMPORT COMPONENT
 import Header from '../components/Header';
@@ -12,7 +13,93 @@ import LineChartFailure from '../components/LineChartFailure';
 // 📌 HUBUNGKAN KE BACKEND EXPRESS (VERCEL PUBLIK)
 const BACKEND_API_URL = "https://project-dashboard-612.vercel.app/api/sheets-data?targetSheet=FRACAS";
 
+// Helper Fetcher Function untuk TanStack Query
+const fetchFracasData = async () => {
+  const response = await axios.get(BACKEND_API_URL);
+  
+  if (response.data && response.data.success) {
+    const rawData = response.data.data || [];
+    
+    return rawData.map(item => {
+      // Helper pintar untuk cocokin nama kolom dari Google Sheets
+      const getVal = (...keys) => {
+        if (!item) return '';
+        
+        // 1. Cek dulu pencocokan nama kolom PRESISI (Case-Insensitive)
+        for (let k of keys) {
+          const foundKey = Object.keys(item).find(
+            key => key.trim().toLowerCase() === String(k).trim().toLowerCase()
+          );
+          if (foundKey && item[foundKey] !== undefined && item[foundKey] !== null && String(item[foundKey]).trim() !== '') {
+            return String(item[foundKey]).trim();
+          }
+        }
+
+        // 2. Fallback pencocokan normalized jika yang presisi tidak ketemu
+        const normalizedItem = {};
+        Object.keys(item || {}).forEach(k => {
+          const cleanKey = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!normalizedItem[cleanKey] && item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+            normalizedItem[cleanKey] = String(item[k]).trim();
+          }
+        });
+
+        for (let k of keys) {
+          const cleanTarget = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normalizedItem[cleanTarget] !== undefined) {
+            return normalizedItem[cleanTarget];
+          }
+        }
+        return '';
+      };
+
+      return {
+        ...item,
+        trainset: getVal('Trainset', 'trainset', 'TS', 'Train Set', 'No Trainset'),
+        no_ka: getVal('No. KA', 'no_ka', 'No KA', 'KA', 'Nomor KA'),
+        
+        // Utamakan 'Klasifikasi Komponen (L1)' DULU baru '6 L1'
+        klasifikasi_komponen_l1: getVal(
+          'Klasifikasi Komponen (L1)', 
+          'klasifikasi_komponen_l1',
+          '6 L1', 
+          'Klasifikasi Komponen L1', 
+          'Komponen L1', 
+          'L1'
+        ),
+        
+        klasifikasi_system_subsystem_l2: getVal(
+          'Klasifikasi System/ Subsystem (L2)', 
+          'klasifikasi_system_subsystem_l2',
+          'Klasifikasi System Subsystem L2', 
+          'Subsystem L2', 
+          'L2', 
+          'Sub System'
+        ),
+        
+        lru_l3: getVal(
+          'LRU (L3)', 
+          'lru_l3',
+          'LRU L3', 
+          'L3', 
+          'LRU', 
+          'Komponen Rusak (TS)'
+        ),
+        
+        status_gangguan: getVal('Status Gangguan', 'status_gangguan', 'Status (TKA)', 'Status', 'STATUS') || 'OPEN',
+        tgl_kejadian: getVal('Tgl Kejadian', 'tgl_kejadian', 'Tanggal Kejadian', 'Tgl & waktu', 'Date'),
+        waktu_kejadian: getVal('Waktu Kejadian', 'waktu_kejadian', 'Jam Kejadian', 'Waktu'),
+        temuan: getVal('Temuan', 'temuan', 'Uraian Temuan', 'Deskripsi Temuan'),
+        detail_temuan: getVal('Detail Temuan', 'detail_temuan', 'Detail Deskripsi Permasalahan / Kegiatan', 'Detail'),
+        solusi_penanganan: getVal('Solusi/Penanganan', 'solusi_penanganan', 'Solusi', 'Penanganan', 'Tindakan')
+      };
+    });
+  }
+  return [];
+};
+
 export default function FracasDashboard({ onBackToPortal }) {
+  // State Filter Aktif
   const [activeFilters, setActiveFilters] = useState({
     trainset: '', 
     noKa: '', 
@@ -20,106 +107,14 @@ export default function FracasDashboard({ onBackToPortal }) {
     l2: '', 
     l3: ''
   });
-  
-  const [allData, setAllData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // 1. 🚀 FETCH DATA DARI BACKEND EXPRESS VERCEL
-  useEffect(() => {
-    setLoading(true);
-    axios.get(BACKEND_API_URL)
-      .then((response) => {
-        if (response.data && response.data.success) {
-          const rawData = response.data.data || [];
-          
-          const mappedData = rawData.map(item => {
-            // Helper pintar untuk cocokin nama kolom dari Google Sheets
-            const getVal = (...keys) => {
-              if (!item) return '';
-              
-              // 1. Cek dulu pencocokan nama kolom PRESISI (Case-Insensitive)
-              for (let k of keys) {
-                const foundKey = Object.keys(item).find(
-                  key => key.trim().toLowerCase() === String(k).trim().toLowerCase()
-                );
-                if (foundKey && item[foundKey] !== undefined && item[foundKey] !== null && String(item[foundKey]).trim() !== '') {
-                  return String(item[foundKey]).trim();
-                }
-              }
+  // 🚀 TANSTACK QUERY: Mengelola Caching & Fetching Otomatis
+  const { data: allData = [], isLoading: loading, isError } = useQuery({
+    queryKey: ['fracasData'],   // Unique Key untuk Cache FRACAS
+    queryFn: fetchFracasData,   // Fungsi Pengambil Data
+  });
 
-              // 2. Fallback pencocokan normalized jika yang presisi tidak ketemu
-              const normalizedItem = {};
-              Object.keys(item || {}).forEach(k => {
-                const cleanKey = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (!normalizedItem[cleanKey] && item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
-                  normalizedItem[cleanKey] = String(item[k]).trim();
-                }
-              });
-
-              for (let k of keys) {
-                const cleanTarget = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (normalizedItem[cleanTarget] !== undefined) {
-                  return normalizedItem[cleanTarget];
-                }
-              }
-              return '';
-            };
-
-            return {
-              ...item,
-              trainset: getVal('Trainset', 'trainset', 'TS', 'Train Set', 'No Trainset'),
-              no_ka: getVal('No. KA', 'no_ka', 'No KA', 'KA', 'Nomor KA'),
-              
-              // 🎯 PERBAIKAN: Utamakan 'Klasifikasi Komponen (L1)' DULU baru '6 L1'
-              klasifikasi_komponen_l1: getVal(
-                'Klasifikasi Komponen (L1)', 
-                'klasifikasi_komponen_l1',
-                '6 L1', 
-                'Klasifikasi Komponen L1', 
-                'Komponen L1', 
-                'L1'
-              ),
-              
-              klasifikasi_system_subsystem_l2: getVal(
-                'Klasifikasi System/ Subsystem (L2)', 
-                'klasifikasi_system_subsystem_l2',
-                'Klasifikasi System Subsystem L2', 
-                'Subsystem L2', 
-                'L2', 
-                'Sub System'
-              ),
-              
-              lru_l3: getVal(
-                'LRU (L3)', 
-                'lru_l3',
-                'LRU L3', 
-                'L3', 
-                'LRU', 
-                'Komponen Rusak (TS)'
-              ),
-              
-              status_gangguan: getVal('Status Gangguan', 'status_gangguan', 'Status (TKA)', 'Status', 'STATUS') || 'OPEN',
-              tgl_kejadian: getVal('Tgl Kejadian', 'tgl_kejadian', 'Tanggal Kejadian', 'Tgl & waktu', 'Date'),
-              waktu_kejadian: getVal('Waktu Kejadian', 'waktu_kejadian', 'Jam Kejadian', 'Waktu'),
-              temuan: getVal('Temuan', 'temuan', 'Uraian Temuan', 'Deskripsi Temuan'),
-              detail_temuan: getVal('Detail Temuan', 'detail_temuan', 'Detail Deskripsi Permasalahan / Kegiatan', 'Detail'),
-              solusi_penanganan: getVal('Solusi/Penanganan', 'solusi_penanganan', 'Solusi', 'Penanganan', 'Tindakan')
-            };
-          });
-
-          setAllData(mappedData);
-          setFilteredData(mappedData);
-        }
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Gagal mengambil data FRACAS dari Backend:", error);
-        setLoading(false);
-      });
-  }, []);
-
-  // 2. 🛠️ HANDLER INPUT FILTER
+  // 1. 🛠️ HANDLER INPUT FILTER
   const handleFilterChange = (filterName, value) => {
     setActiveFilters(prev => ({
       ...prev,
@@ -127,12 +122,9 @@ export default function FracasDashboard({ onBackToPortal }) {
     }));
   };
 
-  // 3. 🛠️ FILTER LOGIC
-  useEffect(() => {
-    if (!allData || allData.length === 0) {
-      setFilteredData([]);
-      return;
-    }
+  // 2. 🛠️ FILTER LOGIC (Dioptimasi Menggunakan useMemo)
+  const filteredData = useMemo(() => {
+    if (!allData || allData.length === 0) return [];
 
     let result = [...allData];
 
@@ -152,11 +144,11 @@ export default function FracasDashboard({ onBackToPortal }) {
       result = result.filter(item => item && String(item.lru_l3).toLowerCase() === String(activeFilters.l3).toLowerCase().trim());
     }
 
-    setFilteredData(result);
+    return result;
   }, [activeFilters, allData]);
 
-  // 4. 🛠️ AGREGASI DATA L1
-  const dapatkanDataL1 = () => {
+  // 3. 🛠️ AGREGASI DATA L1 (Disimpan di Memo)
+  const dataL1Fixed = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
 
     const grupL1 = {};
@@ -181,21 +173,30 @@ export default function FracasDashboard({ onBackToPortal }) {
       value: grupL1[key].count,
       items: Array.from(grupL1[key].items).slice(0, 3)
     })).sort((a, b) => b.value - a.value);
-  };
+  }, [filteredData]);
 
-  const dataL1Fixed = dapatkanDataL1();
-  const nilaiMaksimum = dataL1Fixed.length > 0 && dataL1Fixed[0].value > 0 ? dataL1Fixed[0].value : 1;
+  // KETENTUAN DAN KALKULASI RINGKASAN
+  const nilaiMaksimum = useMemo(() => {
+    return dataL1Fixed.length > 0 && dataL1Fixed[0].value > 0 ? dataL1Fixed[0].value : 1;
+  }, [dataL1Fixed]);
+
   const totalBarisKomponen = filteredData ? filteredData.length : 0;
   
-  const totalOpenTabel = filteredData ? filteredData.filter(item => {
-    const st = (item.status_gangguan || item.status || '').toString().toUpperCase();
-    return st !== 'CLOSE' && st !== 'CLOSED';
-  }).length : 0;
+  const totalOpenTabel = useMemo(() => {
+    if (!filteredData) return 0;
+    return filteredData.filter(item => {
+      const st = (item.status_gangguan || item.status || '').toString().toUpperCase();
+      return st !== 'CLOSE' && st !== 'CLOSED';
+    }).length;
+  }, [filteredData]);
 
-  const totalCloseTabel = filteredData ? filteredData.filter(item => {
-    const st = (item.status_gangguan || item.status || '').toString().toUpperCase();
-    return st === 'CLOSE' || st === 'CLOSED';
-  }).length : 0;
+  const totalCloseTabel = useMemo(() => {
+    if (!filteredData) return 0;
+    return filteredData.filter(item => {
+      const st = (item.status_gangguan || item.status || '').toString().toUpperCase();
+      return st === 'CLOSE' || st === 'CLOSED';
+    }).length;
+  }, [filteredData]);
 
   return (
     <div className="w-full bg-[#f4f4f6] p-3 font-sans flex flex-col gap-2 max-w-[1600px] mx-auto text-slate-800 select-none [zoom:0.82] lg:[zoom:0.85]">
@@ -267,6 +268,10 @@ export default function FracasDashboard({ onBackToPortal }) {
             {loading ? (
               <div className="p-3 text-center text-slate-400 font-bold">
                 Memuat Data FRACAS...
+              </div>
+            ) : isError ? (
+              <div className="p-3 text-center text-red-500 font-bold">
+                Gagal memuat data FRACAS. Silakan periksa koneksi backend.
               </div>
             ) : dataL1Fixed.length === 0 ? (
               <div className="p-3 text-center text-slate-400 font-medium">

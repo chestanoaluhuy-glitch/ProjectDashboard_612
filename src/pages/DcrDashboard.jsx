@@ -1,29 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 
-// 📌 IMPORT KOMPONEN HEADER BARU KITA
+// 📌 IMPORT KOMPONEN HEADER
 import Header from '../components/Header';
 
 // 📌 IMPORT KOMPONEN CHART
 import PieChartCustom from '../components/PieChartCustom';
 import LineChartCustom from '../components/LineChartCustom';
 
-// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke Vercel backend)
+// 🌐 BASE URL API BACKEND
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-dashboard-612.vercel.app';
 
+// Helper Fetcher Function untuk TanStack Query
+const fetchDcrData = async () => {
+  const axiosConfig = {
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  };
+
+  const [resData, resFilters] = await Promise.all([
+    axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=DCR`, axiosConfig),
+    axios.get(`${API_BASE_URL}/api/filters?targetSheet=DCR`, axiosConfig)
+  ]);
+
+  let mappedRecords = [];
+  if (resData.data && resData.data.success) {
+    const raw = resData.data.data || [];
+    mappedRecords = raw.map(item => ({
+      no: item["No"] || item["NO"] || "-",
+      noDoc: item["No Document DCR"] || item["No DCR"] || item["No Doc"] || "-",
+      tglRelease: item["Tanggal Release DCR"] || item["Tanggal"] || item["Tgl Release"] || "-",
+      namaProyek: item["Nama Proyek"] || item["Proyek"] || "-",
+      pengirim: item["Pengirim"] || "-",
+      penerima: item["Penerima"] || "-",
+      perubahan: item["Perubahan"] || item["Perubahan Dokumen"] || "-",
+      alasan: item["Alasan"] || item["Alasan dan Saran"] || "-",
+      status: item["Status DCR"] || item["Status"] || "OPEN",
+      category: item["Category"] || item["Sumber"] || item["Kategori"] || "-"
+    }));
+  }
+
+  return {
+    dcrRecords: mappedRecords,
+    options: resFilters.data?.success ? (resFilters.data.data || {}) : { namaProyek: [], pengirim: [], penerima: [], statusDcr: [] }
+  };
+};
+
 export default function DcrDashboard({ onBackToPortal }) {
-  const [dcrRecords, setDcrRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Opsi Dropdown Filter
-  const [options, setOptions] = useState({
-    namaProyek: [],
-    pengirim: [],
-    penerima: [],
-    statusDcr: []
-  });
-
   // State Filter Aktif
   const [filters, setFilters] = useState({
     namaProyek: '',
@@ -32,64 +57,31 @@ export default function DcrDashboard({ onBackToPortal }) {
     statusDcr: ''
   });
 
-  // 1. FETCH DATA UTAMA & PILIHAN FILTER
-  useEffect(() => {
-    setLoading(true);
+  // 🚀 TANSTACK QUERY: Mengelola Caching & Fetching Otomatis
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['dcrData'],      // Unique Key untuk cache DCR
+    queryFn: fetchDcrData,      // Fungsi pengambil data
+  });
 
-    // Config header khusus ngrok agar tidak terblokir warning page
-    const axiosConfig = {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    };
+  const dcrRecords = data?.dcrRecords || [];
+  const options = data?.options || { namaProyek: [], pengirim: [], penerima: [], statusDcr: [] };
 
-    Promise.all([
-      axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=DCR`, axiosConfig),
-      axios.get(`${API_BASE_URL}/api/filters?targetSheet=DCR`, axiosConfig)
-    ]).then(([resData, resFilters]) => {
-      if (resData.data && resData.data.success) {
-        const raw = resData.data.data || [];
-        const mapped = raw.map(item => ({
-          no: item["No"] || item["NO"] || "-",
-          noDoc: item["No Document DCR"] || item["No DCR"] || item["No Doc"] || "-",
-          tglRelease: item["Tanggal Release DCR"] || item["Tanggal"] || item["Tgl Release"] || "-",
-          namaProyek: item["Nama Proyek"] || item["Proyek"] || "-",
-          pengirim: item["Pengirim"] || "-",
-          penerima: item["Penerima"] || "-",
-          perubahan: item["Perubahan"] || item["Perubahan Dokumen"] || "-",
-          alasan: item["Alasan"] || item["Alasan dan Saran"] || "-",
-          status: item["Status DCR"] || item["Status"] || "OPEN",
-          category: item["Category"] || item["Sumber"] || item["Kategori"] || "-"
-        }));
-        setDcrRecords(mapped);
-        setFilteredRecords(mapped);
-      }
-      if (resFilters.data && resFilters.data.success) {
-        setOptions(resFilters.data.data || {});
-      }
-      setLoading(false);
-    }).catch(err => {
-      console.error("Gagal load DCR:", err);
-      setLoading(false);
-    });
-  }, []);
-
-  // 2. LOGIKA FILTERING DATA
-  useEffect(() => {
+  // 1. LOGIKA FILTERING DATA (Menggunakan useMemo agar optimal)
+  const filteredRecords = useMemo(() => {
     let res = [...dcrRecords];
     if (filters.namaProyek) res = res.filter(r => r.namaProyek === filters.namaProyek);
     if (filters.pengirim) res = res.filter(r => r.pengirim === filters.pengirim);
     if (filters.penerima) res = res.filter(r => r.penerima === filters.penerima);
     if (filters.statusDcr) res = res.filter(r => r.status === filters.statusDcr);
-    setFilteredRecords(res);
+    return res;
   }, [filters, dcrRecords]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  // 3. 📊 LINGKARAN 1: STATUS DCR (OPEN / CLOSE)
-  const getStatusPieData = () => {
+  // 2. 📊 LINGKARAN 1: STATUS DCR (Disimpan di Memo)
+  const statusPieData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     const counts = {};
     filteredRecords.forEach(r => {
@@ -97,10 +89,10 @@ export default function DcrDashboard({ onBackToPortal }) {
       counts[st] = (counts[st] || 0) + 1;
     });
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
-  };
+  }, [filteredRecords]);
 
-  // 4. 📊 LINGKARAN 2: CATEGORY / SOURCE (INTERNAL, CUSTOMER, OTHER DIVISION, VENDOR)
-  const getCategoryPieData = () => {
+  // 3. 📊 LINGKARAN 2: CATEGORY / SOURCE (Disimpan di Memo)
+  const categoryPieData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     
     const counts = {
@@ -121,10 +113,10 @@ export default function DcrDashboard({ onBackToPortal }) {
     return Object.keys(counts)
       .filter(key => counts[key] > 0)
       .map(key => ({ name: key, value: counts[key] }));
-  };
+  }, [filteredRecords]);
 
-  // 5. 📈 LOGIKA AGREGASI DATA UNTUK LINE CHART
-  const getLineData = () => {
+  // 4. 📈 LOGIKA AGREGASI DATA UNTUK LINE CHART (Disimpan di Memo)
+  const lineData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     const counts = {};
     filteredRecords.forEach(r => {
@@ -132,7 +124,7 @@ export default function DcrDashboard({ onBackToPortal }) {
       counts[tgl] = (counts[tgl] || 0) + 1;
     });
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] })).slice(0, 10);
-  };
+  }, [filteredRecords]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 select-none relative flex flex-col justify-between border-[16px] border-red-600 gap-4" style={{ backgroundImage: 'linear-gradient(to bottom, #ffffff, #f8fafc)' }}>
@@ -147,14 +139,14 @@ export default function DcrDashboard({ onBackToPortal }) {
         </button>
       </div>
 
-      {/* 🟢 HEADER BRANDING KITA */}
+      {/* HEADER BRANDING KITA */}
       <Header type="DCR" />
 
       {/* METRICS & DROPDOWN FILTERS */}
       <div className="grid grid-cols-12 gap-3 items-center">
         <div className="col-span-2 bg-white border-2 border-red-600 rounded text-center shadow-sm">
           <div className="bg-red-600 text-white text-[9px] font-black py-0.5 uppercase tracking-wider">TOTAL DCR</div>
-          <div className="text-3xl font-black text-slate-800 py-1">{loading ? "..." : filteredRecords.length}</div>
+          <div className="text-3xl font-black text-slate-800 py-1">{isLoading ? "..." : filteredRecords.length}</div>
         </div>
 
         <div className="col-span-10 grid grid-cols-4 gap-3">
@@ -180,44 +172,44 @@ export default function DcrDashboard({ onBackToPortal }) {
         </div>
       </div>
 
-      {/* CONTENT GRID: CHARTS DITUMPUK (KIRI / 5 COLS) & TABEL (KANAN / 7 COLS) */}
+      {/* CONTENT GRID */}
       <div className="grid grid-cols-12 gap-4 items-stretch flex-1">
         
-        {/* CHARTS DITUMPUK ATAS-BAWAH (KIRI / 5 COLS) */}
+        {/* CHARTS DITUMPUK (KIRI / 5 COLS) */}
         <div className="col-span-5 flex flex-col gap-3 justify-between">
           
-          {/* 🔴 KOTAK DENGAN 2 DIAGRAM LINGKARAN (SIDE-BY-SIDE) */}
+          {/* 🔴 KOTAK DENGAN 2 DIAGRAM LINGKARAN */}
           <div className="bg-white border border-slate-300 rounded p-2.5 shadow-sm text-center flex flex-col justify-between h-48">
             <span className="text-[10px] font-black text-slate-700 uppercase">DCR STATUS & CATEGORY DISTRIBUTION</span>
             
             <div className="grid grid-cols-2 gap-2 flex-1 items-center justify-center">
-              {/* LINGKARAN 1: STATUS (CLOSE / OPEN) */}
+              {/* LINGKARAN 1: STATUS */}
               <div className="flex flex-col items-center justify-center h-full">
                 <span className="text-[8px] font-black text-slate-500 uppercase mb-1">STATUS DCR</span>
                 <div className="w-full h-28 flex items-center justify-center">
-                  <PieChartCustom data={getStatusPieData()} />
+                  <PieChartCustom data={statusPieData} />
                 </div>
               </div>
 
-              {/* LINGKARAN 2: CATEGORY (INTERNAL, CUSTOMER, OTHER DIV, VENDOR) */}
+              {/* LINGKARAN 2: CATEGORY */}
               <div className="flex flex-col items-center justify-center h-full border-l border-slate-200 pl-1">
                 <span className="text-[8px] font-black text-slate-500 uppercase mb-1">CATEGORY</span>
                 <div className="w-full h-28 flex items-center justify-center">
-                  <PieChartCustom data={getCategoryPieData()} />
+                  <PieChartCustom data={categoryPieData} />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* DIAGRAM TREND LINE RELEASE (BAWAH) */}
+          {/* DIAGRAM TREND LINE RELEASE */}
           <div className="bg-white border border-slate-300 rounded p-2.5 shadow-sm text-center flex flex-col justify-between h-40">
             <span className="text-[10px] font-black text-slate-700 uppercase">ALASAN / TREND</span>
             <div className="flex-1 w-full flex items-center justify-center">
-              <LineChartCustom data={getLineData()} />
+              <LineChartCustom data={lineData} />
             </div>
           </div>
 
-          {/* INDIKATOR WORKFLOW PROCESS (PALING BAWAH) */}
+          {/* INDIKATOR WORKFLOW PROCESS */}
           <div className="bg-white/80 border border-slate-300 rounded p-2.5 shadow-sm">
             <div className="flex justify-between items-center text-center text-[8px] font-black text-slate-600 uppercase">
               {["REQUEST", "ASSESSMENT", "REVIEW & APPROVAL", "IMPLEMENTATION", "TRACKING & REPORT"].map((st, i) => (
@@ -248,8 +240,10 @@ export default function DcrDashboard({ onBackToPortal }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-700 font-medium">
-                {loading ? (
+                {isLoading ? (
                   <tr><td colSpan="8" className="p-4 text-center font-bold text-red-600">Loading DCR Data...</td></tr>
+                ) : isError ? (
+                  <tr><td colSpan="8" className="p-4 text-center font-bold text-red-500">Gagal memuat data DCR. Silakan refresh.</td></tr>
                 ) : filteredRecords.length > 0 ? (
                   filteredRecords.map((r, i) => (
                     <tr key={i} className="hover:bg-amber-50/50">

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
 import { 
   PieChart, 
   Pie, 
@@ -13,7 +14,7 @@ import {
 import Header from '../components/Header';
 import LineChartCustom from '../components/LineChartCustom';
 
-// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke Vercel backend)
+// 🌐 BASE URL API BACKEND
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-dashboard-612.vercel.app';
 
 // 🎨 MAP WARNA SESUAI GAMBAR CONTOH
@@ -30,19 +31,45 @@ const COLOR_MAP = {
   'Reject': '#A855F7'    // Ungu
 };
 
+// Helper Fetcher Function untuk TanStack Query
+const fetchNcrData = async () => {
+  const axiosConfig = {
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  };
+
+  const [resData, resFilters] = await Promise.all([
+    axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=NCR`, axiosConfig),
+    axios.get(`${API_BASE_URL}/api/filters?targetSheet=NCR`, axiosConfig)
+  ]);
+
+  let mappedRecords = [];
+  if (resData.data && resData.data.success) {
+    const raw = resData.data.data || [];
+    mappedRecords = raw.map(item => ({
+      noNCR: item["No Document NCR"] || item["No NCR"] || "-",
+      tglTerbit: item["Tgl Terbit"] || item["Tanggal Terbit"] || item["Tanggal"] || "-",
+      nomorPO: item["Nomor PO"] || item["PO"] || "-",
+      namaProses: item["Nama Proses"] || "-",
+      uraian: item["Uraian Ketidaksesuaian"] || item["Uraian"] || "-",
+      inspektor: item["Inspektor QC"] || item["Group Inspektor"] || "-",
+      acuan: item["Acuan Pemeriksaan"] || "-",
+      unitTujuan: item["Unit Tujuan"] || "-",
+      projek: item["Nama Proyek"] || item["Projek"] || "-",
+      status: item["Status NCR"] || item["Status"] || "OPEN",
+      akarMasalah: item["Akar Masalah"] || item["Kategori"] || "-",
+      disposisi: item["Disposisi"] || item["Keputusan"] || "-"
+    }));
+  }
+
+  return {
+    ncrRecords: mappedRecords,
+    options: resFilters.data?.success ? (resFilters.data.data || {}) : { projek: [], unitTujuan: [], groupInspektor: [], status: [] }
+  };
+};
+
 export default function NcrDashboard({ onBackToPortal }) {
-  const [ncrRecords, setNcrRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Opsi Dropdown Filter
-  const [options, setOptions] = useState({
-    projek: [],
-    unitTujuan: [],
-    groupInspektor: [],
-    status: []
-  });
-
   // State Filter Aktif
   const [filters, setFilters] = useState({
     projek: '',
@@ -51,64 +78,29 @@ export default function NcrDashboard({ onBackToPortal }) {
     status: ''
   });
 
-  // 1. FETCH DATA UTAMA & DROPDOWN FILTERS
-  useEffect(() => {
-    setLoading(true);
+  // 🚀 TANSTACK QUERY: Mengelola Caching & Fetching Otomatis
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['ncrData'],      // Unique Key untuk cache NCR
+    queryFn: fetchNcrData,      // Fungsi pengambil data
+  });
 
-    // Config header khusus ngrok agar tidak terblokir warning page
-    const axiosConfig = {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    };
+  const ncrRecords = data?.ncrRecords || [];
+  const options = data?.options || { projek: [], unitTujuan: [], groupInspektor: [], status: [] };
 
-    Promise.all([
-      axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=NCR`, axiosConfig),
-      axios.get(`${API_BASE_URL}/api/filters?targetSheet=NCR`, axiosConfig)
-    ]).then(([resData, resFilters]) => {
-      if (resData.data && resData.data.success) {
-        const raw = resData.data.data || [];
-        const mapped = raw.map(item => ({
-          noNCR: item["No Document NCR"] || item["No NCR"] || "-",
-          tglTerbit: item["Tgl Terbit"] || item["Tanggal Terbit"] || item["Tanggal"] || "-",
-          nomorPO: item["Nomor PO"] || item["PO"] || "-",
-          namaProses: item["Nama Proses"] || "-",
-          uraian: item["Uraian Ketidaksesuaian"] || item["Uraian"] || "-",
-          inspektor: item["Inspektor QC"] || item["Group Inspektor"] || "-",
-          acuan: item["Acuan Pemeriksaan"] || "-",
-          unitTujuan: item["Unit Tujuan"] || "-",
-          projek: item["Nama Proyek"] || item["Projek"] || "-",
-          status: item["Status NCR"] || item["Status"] || "OPEN",
-          akarMasalah: item["Akar Masalah"] || item["Kategori"] || "-",
-          disposisi: item["Disposisi"] || item["Keputusan"] || "-"
-        }));
-        setNcrRecords(mapped);
-        setFilteredRecords(mapped);
-      }
-      if (resFilters.data && resFilters.data.success) {
-        setOptions(resFilters.data.data || {});
-      }
-      setLoading(false);
-    }).catch(err => {
-      console.error("Gagal load NCR:", err);
-      setLoading(false);
-    });
-  }, []);
-
-  // 2. LOGIKA FILTERING DATA
-  useEffect(() => {
+  // 1. LOGIKA FILTERING DATA (Menggunakan useMemo agar ringan)
+  const filteredRecords = useMemo(() => {
     let res = [...ncrRecords];
     if (filters.projek) res = res.filter(r => r.projek === filters.projek);
     if (filters.unitTujuan) res = res.filter(r => r.unitTujuan === filters.unitTujuan);
     if (filters.groupInspektor) res = res.filter(r => r.inspektor === filters.groupInspektor);
     if (filters.status) res = res.filter(r => r.status === filters.status);
-    setFilteredRecords(res);
+    return res;
   }, [filters, ncrRecords]);
 
   const handleFilterChange = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
 
-  // 3. 📊 DATA AKAR MASALAH (RING / DOUGHNUT CHART)
-  const getAkarMasalahData = () => {
+  // 2. 📊 DATA AKAR MASALAH (RING / DOUGHNUT CHART - Disimpan di Memo)
+  const akarMasalahData = useMemo(() => {
     const counts = { 'Material': 0, 'Metode': 0, 'Dokumen': 0, 'Personil': 0 };
 
     if (filteredRecords && filteredRecords.length > 0) {
@@ -122,17 +114,16 @@ export default function NcrDashboard({ onBackToPortal }) {
       return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
     }
 
-    // Default Tampilan awal agar persis gambar jika data belum terisi
     return [
       { name: 'Material', value: 91.5 },
       { name: 'Metode', value: 3.5 },
       { name: 'Dokumen', value: 2.5 },
       { name: 'Personil', value: 2.5 }
     ];
-  };
+  }, [filteredRecords]);
 
-  // 4. 📊 DATA DISPOSISI (PIE CHART FULL)
-  const getDisposisiData = () => {
+  // 3. 📊 DATA DISPOSISI (PIE CHART FULL - Disimpan di Memo)
+  const disposisiData = useMemo(() => {
     const counts = { 'RTS': 0, 'Repair': 0, 'Reject': 0 };
 
     if (filteredRecords && filteredRecords.length > 0) {
@@ -145,16 +136,15 @@ export default function NcrDashboard({ onBackToPortal }) {
       return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
     }
 
-    // Default Tampilan awal
     return [
       { name: 'RTS', value: 77.1 },
       { name: 'Repair', value: 13.1 },
       { name: 'Reject', value: 9.8 }
     ];
-  };
+  }, [filteredRecords]);
 
-  // 5. 📈 TREND LINE DATA
-  const getTrendLineData = () => {
+  // 4. 📈 TREND LINE DATA (Disimpan di Memo)
+  const trendLineData = useMemo(() => {
     if (!filteredRecords || filteredRecords.length === 0) return [];
     const counts = {};
     filteredRecords.forEach(r => {
@@ -162,10 +152,7 @@ export default function NcrDashboard({ onBackToPortal }) {
       counts[tgl] = (counts[tgl] || 0) + 1;
     });
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] })).slice(0, 8);
-  };
-
-  const akarMasalahData = getAkarMasalahData();
-  const disposisiData = getDisposisiData();
+  }, [filteredRecords]);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans p-6 select-none relative flex flex-col justify-between border-[16px] border-teal-700 gap-4" style={{ backgroundImage: 'linear-gradient(to bottom, #ffffff, #f0fdfa)' }}>
@@ -187,7 +174,7 @@ export default function NcrDashboard({ onBackToPortal }) {
       <div className="grid grid-cols-12 gap-3 items-center">
         <div className="col-span-2 bg-white border-2 border-teal-700 rounded text-center shadow-sm">
           <div className="bg-teal-700 text-white text-[9px] font-black py-0.5 uppercase">TOTAL NCR</div>
-          <div className="text-3xl font-black text-slate-800 py-1">{loading ? "..." : filteredRecords.length}</div>
+          <div className="text-3xl font-black text-slate-800 py-1">{isLoading ? "..." : filteredRecords.length}</div>
         </div>
 
         <div className="col-span-10 grid grid-cols-4 gap-3">
@@ -231,8 +218,10 @@ export default function NcrDashboard({ onBackToPortal }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {loading ? (
+                {isLoading ? (
                   <tr><td colSpan="7" className="p-4 text-center font-bold text-teal-700">Loading NCR Data...</td></tr>
+                ) : isError ? (
+                  <tr><td colSpan="7" className="p-4 text-center font-bold text-red-500">Gagal memuat data NCR. Silakan refresh.</td></tr>
                 ) : filteredRecords.length > 0 ? (
                   filteredRecords.map((r, i) => (
                     <tr key={i} className="hover:bg-teal-50">
@@ -259,11 +248,11 @@ export default function NcrDashboard({ onBackToPortal }) {
           <div className="bg-white border border-slate-300 rounded p-2 shadow-sm text-center flex flex-col justify-between h-36">
             <span className="text-[10px] font-black text-slate-700 uppercase">RECORD TREND</span>
             <div className="flex-1 w-full flex items-center justify-center">
-              <LineChartCustom data={getTrendLineData()} />
+              <LineChartCustom data={trendLineData} />
             </div>
           </div>
 
-          {/* 🟢 KOTAK DENGAN 2 DIAGRAM LINGKARAN LANGSUNG DIBUAT DI SINI */}
+          {/* 🟢 KOTAK DENGAN 2 DIAGRAM LINGKARAN */}
           <div className="bg-white border border-slate-300 rounded p-2.5 shadow-sm text-center flex flex-col justify-between h-56">
             <div className="w-full h-full grid grid-cols-2 gap-2 items-center">
               

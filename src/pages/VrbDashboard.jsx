@@ -8,8 +8,8 @@ import Header from '../components/Header';
 import LineChartCustom from '../components/LineChartCustom';
 import BarChartHorizontal from '../components/BarChartHorizontal';
 
-// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke localhost)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke Vercel backend)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-dashboard-612.vercel.app';
 
 export default function VrbDashboard({ onBackToPortal }) {
   const [vrbRecords, setVrbRecords] = useState([]);

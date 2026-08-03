@@ -13,6 +13,9 @@ import {
 import Header from '../components/Header';
 import LineChartCustom from '../components/LineChartCustom';
 
+// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke Vercel backend)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-dashboard-612.vercel.app';
+
 // 🎨 MAP WARNA SESUAI GAMBAR CONTOH
 const COLOR_MAP = {
   // Akar Masalah
@@ -51,9 +54,17 @@ export default function NcrDashboard({ onBackToPortal }) {
   // 1. FETCH DATA UTAMA & DROPDOWN FILTERS
   useEffect(() => {
     setLoading(true);
+
+    // Config header khusus ngrok agar tidak terblokir warning page
+    const axiosConfig = {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    };
+
     Promise.all([
-      axios.get('http://localhost:5000/api/sheets-data?targetSheet=NCR'),
-      axios.get('http://localhost:5000/api/filters?targetSheet=NCR')
+      axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=NCR`, axiosConfig),
+      axios.get(`${API_BASE_URL}/api/filters?targetSheet=NCR`, axiosConfig)
     ]).then(([resData, resFilters]) => {
       if (resData.data && resData.data.success) {
         const raw = resData.data.data || [];

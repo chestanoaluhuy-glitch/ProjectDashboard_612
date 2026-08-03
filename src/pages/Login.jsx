@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 export default function Login() {
@@ -24,11 +24,45 @@ export default function Login() {
       console.error('Supabase Login Error:', error.message);
       setErrorMsg('KREDENSIAL OTORISASI SALAH. AKSES DITOLAK!');
       setLoading(false);
-    } else {
-      console.log('Login Berhasil:', data);
-      setLoading(false);
-      navigate('/portal');
+      return;
     }
+
+    // 2. CEK STATUS PERSATUAN (ACC) DI TABEL SUPABASE
+    const { data: userRecords, error: statusError } = await supabase
+      .from('login_history')
+      .select('status')
+      .eq('user_email', email)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const userStatus = userRecords && userRecords.length > 0 ? userRecords[0].status : null;
+
+    if (statusError || !userStatus) {
+      // Jika status 'pending' atau belum tercatat
+      await supabase.auth.signOut();
+      setErrorMsg('AKUN ANDA MENUNGGU PERSETUJUAN (ACC) ADMIN!');
+      setLoading(false);
+      return;
+    }
+
+    if (userStatus === 'pending') {
+      await supabase.auth.signOut();
+      setErrorMsg('AKUN MASIH DALAM PROSES ACC ADMIN. MOHON TUNGGU!');
+      setLoading(false);
+      return;
+    }
+
+    if (userStatus === 'rejected') {
+      await supabase.auth.signOut();
+      setErrorMsg('PENDAFTARAN AKUN ANDA DITOLAK OLEH ADMIN.');
+      setLoading(false);
+      return;
+    }
+
+    // 3. JIKA STATUS 'approved', MASUK KE PORTAL
+    console.log('Login Berhasil & Approved:', data);
+    setLoading(false);
+    navigate('/portal');
   };
 
   return (
@@ -89,6 +123,16 @@ export default function Login() {
             {loading ? 'PROCESSING...' : 'LOGIN TO SYSTEM →'}
           </button>
         </form>
+
+        {/* Link Ke Halaman Register */}
+        <div className="mt-6 text-center border-t border-gray-800 pt-4">
+          <p className="text-xs text-gray-400">
+            Belum punya akses akun?{' '}
+            <Link to="/register" className="text-red-500 font-semibold hover:underline">
+              Daftar / Request Akun
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

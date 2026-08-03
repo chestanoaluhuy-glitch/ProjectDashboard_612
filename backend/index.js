@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbybXSjLwXQBY3TTDQYnL-m3j3Jlxo-pK0RciJPmXsA-EmVcFZJtn3HIbuYKv4k3xEdZ/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrdsHVGkRiZGXuOtxSCwlK3BgRurY-hk_5AaoEtDWcy05R9pVoFHexR518bOiD7B9R1Q/exec';
 
 const cleanStr = (val) => (val !== undefined && val !== null ? String(val).trim() : '');
 

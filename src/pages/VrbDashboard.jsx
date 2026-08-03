@@ -8,6 +8,9 @@ import Header from '../components/Header';
 import LineChartCustom from '../components/LineChartCustom';
 import BarChartHorizontal from '../components/BarChartHorizontal';
 
+// 🌐 BASE URL API (Mengambil dari Vercel Env / Ngrok, fallback ke localhost)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function VrbDashboard({ onBackToPortal }) {
   const [vrbRecords, setVrbRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
@@ -32,9 +35,17 @@ export default function VrbDashboard({ onBackToPortal }) {
   // 1. FETCH DATA & FILTERS
   useEffect(() => {
     setLoading(true);
+
+    // Config header khusus ngrok agar tidak terblokir warning page
+    const axiosConfig = {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    };
+
     Promise.all([
-      axios.get('http://localhost:5000/api/sheets-data?targetSheet=VRB'),
-      axios.get('http://localhost:5000/api/filters?targetSheet=VRB')
+      axios.get(`${API_BASE_URL}/api/sheets-data?targetSheet=VRB`, axiosConfig),
+      axios.get(`${API_BASE_URL}/api/filters?targetSheet=VRB`, axiosConfig)
     ]).then(([resData, resFilters]) => {
       if (resData.data && resData.data.success) {
         const raw = resData.data.data || [];

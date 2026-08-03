@@ -99,7 +99,7 @@ const fetchFracasData = async () => {
 };
 
 export default function FracasDashboard({ onBackToPortal }) {
-  // State Filter Aktif
+  // State Filter Aktif dari Control Panel Dropdown
   const [activeFilters, setActiveFilters] = useState({
     trainset: '', 
     noKa: '', 
@@ -107,6 +107,9 @@ export default function FracasDashboard({ onBackToPortal }) {
     l2: '', 
     l3: ''
   });
+
+  // 🔍 STATE BARU: PENCARIAN TEKS PADA TABEL LOG DETAIL
+  const [searchTerm, setSearchTerm] = useState('');
 
   // 🚀 TANSTACK QUERY: Mengelola Caching & Fetching Otomatis
   const { data: allData = [], isLoading: loading, isError } = useQuery({
@@ -122,7 +125,7 @@ export default function FracasDashboard({ onBackToPortal }) {
     }));
   };
 
-  // 2. 🛠️ FILTER LOGIC (Dioptimasi Menggunakan useMemo)
+  // 2. 🛠️ FILTER LOGIC DROPDOWN (Dioptimasi Menggunakan useMemo)
   const filteredData = useMemo(() => {
     if (!allData || allData.length === 0) return [];
 
@@ -147,7 +150,31 @@ export default function FracasDashboard({ onBackToPortal }) {
     return result;
   }, [activeFilters, allData]);
 
-  // 3. 🛠️ AGREGASI DATA L1 (Disimpan di Memo)
+  // 🔍 3. 🛠️ FILTERING TEKS PADA SEARCH BAR DENGAN PENCARIAN SELURUH KOLOM
+  const tableData = useMemo(() => {
+    if (!searchTerm.trim()) return filteredData;
+    
+    const query = searchTerm.toLowerCase().trim();
+    return filteredData.filter(item => {
+      const searchFields = [
+        item.tgl_kejadian,
+        item.waktu_kejadian,
+        item.trainset,
+        item.no_ka,
+        item.klasifikasi_komponen_l1,
+        item.klasifikasi_system_subsystem_l2,
+        item.lru_l3,
+        item.temuan,
+        item.detail_temuan,
+        item.solusi_penanganan,
+        item.status_gangguan
+      ];
+
+      return searchFields.some(val => val && String(val).toLowerCase().includes(query));
+    });
+  }, [filteredData, searchTerm]);
+
+  // 4. 🛠️ AGREGASI DATA L1 (Disimpan di Memo)
   const dataL1Fixed = useMemo(() => {
     if (!filteredData || filteredData.length === 0) return [];
 
@@ -328,9 +355,45 @@ export default function FracasDashboard({ onBackToPortal }) {
 
       </div>
 
+      {/* 🔍 BARIS CONTROL BARU: SEARCH BOX DIPASANG DI ATAS TABEL DETAIL LOG */}
+      <div className="w-full bg-white p-2.5 rounded border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-2 relative z-10 mt-1">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-[11px] font-black text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+            📋 DETAIL FAILURE LOG DATA
+          </span>
+          <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+            {tableData.length} Records
+          </span>
+        </div>
+
+        {/* INPUT PENCARIAN TEKS REALTIME */}
+        <div className="relative w-full sm:w-80">
+          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Cari Tgl, Waktu, Trainset, L1/L2/L3, Temuan..."
+            className="w-full bg-slate-50 hover:bg-white focus:bg-white text-slate-800 text-[11px] font-medium pl-8 pr-7 py-1.5 rounded border border-slate-300 focus:border-[#e15243] focus:ring-1 focus:ring-[#e15243] outline-none transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 text-[12px] font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* TABEL DETAIL LOG */}
       <div className="w-full relative z-10 max-h-[280px] overflow-y-auto rounded border border-slate-200">
-        <FailureTable data={filteredData} />
+        <FailureTable data={tableData} />
       </div>
     </div>
   );

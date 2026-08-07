@@ -51,7 +51,7 @@ export default function Portal({ onSelectMenu, onLogout }) {
             <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase">System Operational Control</span>
           </div>
           <h1 className="text-2xl font-black tracking-wider text-white uppercase">
-            Quality Management Portal
+            Portal DMTP
           </h1>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
             PT INKA (Persero) Enterprise Application Module Dashboard

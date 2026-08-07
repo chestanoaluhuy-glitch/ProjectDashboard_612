@@ -29,22 +29,34 @@ const fetchVrbData = async () => {
   if (resData.data && resData.data.success) {
     const raw = resData.data.data || [];
     
-    // Helper Mapper Kolom PNKK & TKB
+    // Helper Mapper Kolom PNKK & TKB (Pencarian Fleksibel Anti-Blank)
     mappedRecords = raw.map(item => {
       const getVal = (...keys) => {
+        // 1. Cek Exact Match
         for (let k of keys) {
-          if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
+          if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+            return item[k];
+          }
+        }
+        // 2. Cek Flexible Fuzzy Match (Toleran Spasi & Huruf Besar/Kecil)
+        const itemKeys = Object.keys(item);
+        for (let k of keys) {
+          const cleanTarget = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matchedKey = itemKeys.find(ik => ik.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
+          if (matchedKey && item[matchedKey] !== undefined && item[matchedKey] !== null && String(item[matchedKey]).trim() !== '') {
+            return item[matchedKey];
+          }
         }
         return '-';
       };
 
       return {
         trainset: getVal('Trainset', 'TRAINSET', 'TS', 'Train Set'),
-        noLambung: getVal('No Lambung', 'No. Lambung', 'NO LAMBUNG'),
-        carType: getVal('Car Type', 'CAR TYPE', 'Tipe Kereta'),
-        underframe: getVal('Underframe', 'Underframe Number', 'UNDERFRAME'),
-        bogieFrame: getVal('Bogie Frame Number', 'Bogie Frame Number 1', 'BOGIE FRAME NUMBER F'),
-        bogieNumber: getVal('Bogie Number', 'Bogie Number 1', 'BOGIE NUMBER F'),
+        noLambung: getVal('No Lambung', 'No. Lambung', 'NO LAMBUNG', 'No_Lambung', 'Nomer Lambung'),
+        carType: getVal('Car Type', 'CAR TYPE', 'Tipe Kereta', 'Car_Type', 'Type'),
+        underframe: getVal('Underframe', 'Underframe Number', 'UNDERFRAME', 'No Underframe', 'No. Underframe'),
+        bogieFrame: getVal('Bogie Frame Number', 'Bogie Frame Number 1', 'BOGIE FRAME NUMBER F', 'Bogie Frame', 'No. Bogie Frame'),
+        bogieNumber: getVal('Bogie Number', 'Bogie Number 1', 'BOGIE NUMBER F', 'Bogie No', 'No. Bogie'),
         wheelBrand: getVal('Wheel Brand', 'Axle Box Assembly Brand', 'Rubber Bonded Brand', 'Brand')
       };
     });

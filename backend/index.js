@@ -79,7 +79,7 @@ app.get('/api/filters', async (req, res) => {
             sets.status = new Set();
 
             rawRows.forEach(item => {
-                const pr = cleanStr(item["Nama Proyek"] || item["Projek"] || item["Proyek"]);
+                const pr = cleanStr(item["Nama Proyek"] || item["Projek"]);
                 const ut = cleanStr(item["Unit Tujuan"] || item["Seksi/Unit"]);
                 const gi = cleanStr(item["Group Inspektor"] || item["Inspektor QC"]);
                 const st = cleanStr(item["Status NCR"] || item["Status"]);
@@ -89,10 +89,11 @@ app.get('/api/filters', async (req, res) => {
                 if (st) sets.status.add(st);
             });
         } else if (targetSheet === 'VRB') {
-            sets.ts = new Set();
-            sets.noKa = new Set();
-            sets.part = new Set();
-            sets.brand = new Set();
+            // UPDATED: Filter Khusus Portal Pemeriksaan Nomor Komponen (PNKK & TKB)
+            sets.trainset = new Set();
+            sets.noLambung = new Set();
+            sets.carType = new Set();
+            sets.underframe = new Set();
 
             rawRows.forEach(item => {
                 const getVal = (...keys) => {
@@ -102,15 +103,15 @@ app.get('/api/filters', async (req, res) => {
                     return '';
                 };
 
-                const t = String(getVal('TS', 'Train Set', 'Trainset', 'ts')).trim();
-                const nk = String(getVal('No. KA', 'No KA', 'no_ka')).trim();
-                const pt = String(getVal('Part', 'part')).trim();
-                const br = String(getVal('Brand', 'brand')).trim();
+                const ts = cleanStr(getVal('Trainset', 'TRAINSET', 'TS', 'Train Set'));
+                const nl = cleanStr(getVal('No Lambung', 'No. Lambung', 'NO LAMBUNG'));
+                const ct = cleanStr(getVal('Car Type', 'CAR TYPE', 'Tipe Kereta'));
+                const uf = cleanStr(getVal('Underframe', 'UNDERFRAME', 'Underframe Number'));
 
-                if (t) sets.ts.add(t);
-                if (nk) sets.noKa.add(nk);
-                if (pt) sets.part.add(pt);
-                if (br) sets.brand.add(br);
+                if (ts) sets.trainset.add(ts);
+                if (nl) sets.noLambung.add(nl);
+                if (ct) sets.carType.add(ct);
+                if (uf) sets.underframe.add(uf);
             });
         }
 

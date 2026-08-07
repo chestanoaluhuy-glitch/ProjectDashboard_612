@@ -13,8 +13,8 @@ export default function Portal({ onSelectMenu, onLogout }) {
     },
     {
       id: 'vrb',
-      title: 'VRB Portal',
-      desc: 'Vendor Remedy Board - Stream Data & Evaluation Monitoring',
+      title: 'PORTAL PEMERIKSAAN NOMOR KOMPONEN.',
+      desc: 'Pemeriksaan & Monitoring Nomor Seri Komponen (Data PNKK & TKB)',
       color: 'border-l-amber-500 text-amber-400 bg-amber-500/5',
       badge: 'Active & Integrated',
       badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20'

@@ -16,7 +16,7 @@ export default function Portal({ onSelectMenu, onLogout }) {
       title: 'VRB Portal',
       desc: 'Vendor Remedy Board - Stream Data & Evaluation Monitoring',
       color: 'border-l-amber-500 text-amber-400 bg-amber-500/5',
-      badge: 'In Pipeline',
+      badge: 'Active & Integrated',
       badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20'
     },
     {
@@ -24,7 +24,7 @@ export default function Portal({ onSelectMenu, onLogout }) {
       title: 'DCR System',
       desc: 'Document Change Request - Configuration Management',
       color: 'border-l-blue-500 text-blue-400 bg-blue-500/5',
-      badge: 'In Pipeline',
+      badge: 'Active & Integrated',
       badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
     },
     {
@@ -32,7 +32,7 @@ export default function Portal({ onSelectMenu, onLogout }) {
       title: 'NCR Report',
       desc: 'Non-Conformance Report - Quality Assurance Control Log',
       color: 'border-l-slate-500 text-slate-400 bg-slate-500/5',
-      badge: 'In Pipeline',
+      badge: 'Active & Integrated',
       badgeColor: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
     }
   ];

@@ -29,9 +29,11 @@ const getPropValue = (obj, targetKeys) => {
   return '-';
 };
 
-// Fetcher Data VRB KRDE BIAS via Express Backend
+// Fetcher Data VRB KRDE BIAS (Sudah diperbaiki agar support Vercel & Localhost)
 const fetchKrdeBiasData = async () => {
-  const res = await fetch('http://localhost:5000/api/sheets-data?targetSheet=VRB');
+  const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+  const res = await fetch(`${baseUrl}/api/sheets-data?targetSheet=VRB`);
+  
   if (!res.ok) throw new Error('Gagal mengambil data VRB KRDE BIAS');
   
   const json = await res.json();

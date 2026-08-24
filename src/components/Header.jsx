@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function Header({ type = 'FRACAS' }) {
+export default function Header({ type = 'KRDE_MAKPAR' }) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -21,43 +21,33 @@ export default function Header({ type = 'FRACAS' }) {
   };
 
   const getHeaderConfig = () => {
-    switch (type.toUpperCase()) {
-      case 'DCR':
+    const normalizedType = String(type).toUpperCase().trim();
+
+    switch (normalizedType) {
+      case 'BIAS':
+      case 'KRDE_BIAS':
+      case 'LOGBOOK_BIAS':
         return {
-          title: 'DCR',
-          subtitle: 'Document Change Request',
-          badge: 'DCR DASHBOARD',
-          titleColor: 'text-red-600',
-          dotColor: 'bg-red-600',
-          badgeBg: 'bg-red-600'
-        };
-      case 'NCR':
-        return {
-          title: 'NCR',
-          subtitle: 'Non Conformance Report',
-          badge: 'NCR DASHBOARD MONITORING',
-          titleColor: 'text-teal-700',
-          dotColor: 'bg-teal-700',
-          badgeBg: 'bg-teal-700'
-        };
-      case 'VRB':
-        return {
-          title: 'VRB',
-          subtitle: 'Verification Report Book',
-          badge: 'VENDOR REVIEW BOARD',
+          title: 'VRB KRDE BIAS',
+          subtitle: 'Vehicle Record Book & Operational Failure Reporting System',
+          badge: 'VRB MONITORING',
           titleColor: 'text-amber-600',
           dotColor: 'bg-amber-600',
           badgeBg: 'bg-amber-600'
         };
-      case 'FRACAS':
+
+      case 'MAKPAR':
+      case 'KRDE_MAKPAR':
+      case 'LOGBOOK_MAKPAR':
+      case 'LOGBOOK':
       default:
         return {
-          title: 'FRACAS',
-          subtitle: 'Failure Reporting, Analysis, and Corrective Action System',
-          badge: 'RELIABILITY MONITORING',
-          titleColor: 'text-red-800',
-          dotColor: 'bg-red-800',
-          badgeBg: 'bg-red-800'
+          title: 'LOGBOOK KRDE MAKPAR',
+          subtitle: 'Logbook Kejadian & Gangguan Kereta Makassar - Parepare',
+          badge: 'LOGBOOK MONITORING',
+          titleColor: 'text-sky-600',
+          dotColor: 'bg-sky-600',
+          badgeBg: 'bg-sky-600'
         };
     }
   };
@@ -65,40 +55,51 @@ export default function Header({ type = 'FRACAS' }) {
   const config = getHeaderConfig();
 
   return (
-    <div className="bg-white p-4 py-5 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 w-full select-none">
-      {/* 1. LOGO */}
-      <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-md border border-slate-100 min-w-[260px] justify-center md:justify-start">
-        <img src="/logo-inka.png" alt="Logo PT INKA" className="h-8 w-auto object-contain" />
+    <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4 w-full select-none">
+      
+      {/* 1. LOGO BRANDING */}
+      <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-md border border-slate-100 w-full lg:w-auto justify-center">
+        <img 
+          src="/logo-inka.png" 
+          alt="Logo PT INKA" 
+          className="h-8 w-auto object-contain"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
         <div className="h-7 w-[1px] bg-slate-300 mx-1" />
-        <img src="/logo-danantara.png" alt="Logo Danantara" className="h-27 w-auto object-contain" />
+        <img 
+          src="/logo-danantara.png" 
+          alt="Logo Danantara" 
+          className="h-20 sm:h-22 w-auto object-contain" 
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
       </div>
 
       {/* 2. JUDUL MODUL */}
-      <div className="flex flex-col items-center justify-center text-center max-w-xl flex-1">
+      <div className="flex flex-col items-center justify-center text-center flex-1 w-full">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${config.dotColor} animate-pulse`}></span>
-          <h1 className={`${config.titleColor} font-black text-3xl tracking-widest leading-none drop-shadow-sm`}>
+          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${config.dotColor} animate-pulse`}></span>
+          <h1 className={`${config.titleColor} font-black text-xl sm:text-2xl md:text-3xl tracking-wider sm:tracking-widest leading-none drop-shadow-sm`}>
             {config.title}
           </h1>
-          <span className={`w-2 h-2 rounded-full ${config.dotColor} animate-pulse`}></span>
+          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${config.dotColor} animate-pulse`}></span>
         </div>
-        <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest mt-1.5 max-w-md leading-normal">
+        <p className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider sm:tracking-widest mt-1.5 max-w-md leading-normal px-2">
           {config.subtitle}
         </p>
         <div className="mt-1.5 flex gap-1.5 justify-center">
-          <span className={`${config.badgeBg} text-white text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider shadow-sm`}>
+          <span className={`${config.badgeBg} text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider shadow-sm`}>
             KERETA API
           </span>
-          <span className="bg-slate-800 text-white text-[8px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider shadow-sm">
+          <span className="bg-slate-800 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider shadow-sm">
             {config.badge}
           </span>
         </div>
       </div>
 
       {/* 3. JAM / LIVE STATUS */}
-      <div className="flex items-center gap-3 bg-slate-800 text-slate-200 px-4 py-2 rounded-md shadow-inner text-right min-w-[240px] justify-center md:justify-end">
+      <div className="flex items-center gap-3 bg-slate-800 text-slate-200 px-3 py-2 rounded-md shadow-inner text-center lg:text-right w-full lg:w-auto justify-center">
         <div className="flex flex-col font-mono">
-          <div className="flex items-center gap-1.5 justify-end text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+          <div className="flex items-center gap-1.5 justify-center lg:justify-end text-[9px] font-bold text-slate-400 uppercase tracking-wide">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping"></span>
             System Live Connection
           </div>
@@ -107,6 +108,7 @@ export default function Header({ type = 'FRACAS' }) {
           </span>
         </div>
       </div>
+
     </div>
   );
 }

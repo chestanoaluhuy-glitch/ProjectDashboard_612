@@ -1,106 +1,183 @@
 import React from 'react';
 
 export default function Portal({ onSelectMenu, onLogout }) {
-  // Data menu portal modular sesuai pipeline industri
-  const menuList = [
+  const modules = [
     {
-      id: 'fracas',
-      title: 'FRACAS System',
-      desc: 'Failure Reporting, Analysis, and Corrective Action System',
-      color: 'border-l-red-500 text-red-400 bg-red-500/5',
-      badge: 'Active & Integrated',
-      badgeColor: 'bg-red-500/10 text-red-400 border-red-500/20'
+      id: 'krde_bias',
+      code: 'MODUL SISTEM 01',
+      title: 'KRDE BIAS',
+      subtitle: 'KA Bandara Adi Soemarmo',
+      desc: 'Vehicle Record Book & Operational Failure Reporting System untuk monitoring kendala teknis armada Kereta Bandara Adi Soemarmo.',
+      badge: 'TERINTEGRASI',
+      badgeBg: 'bg-amber-100 text-amber-800 border-amber-300',
+      borderHover: 'hover:border-amber-500 hover:shadow-amber-100',
+      accentColor: 'bg-amber-500',
+      buttonBg: 'bg-slate-900 hover:bg-amber-600 text-white',
+      icon: (
+        <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
     },
     {
-      id: 'vrb',
-      title: 'PORTAL PEMERIKSAAN NOMOR KOMPONEN.',
-      desc: 'Pemeriksaan & Monitoring Nomor Seri Komponen (Data PNKK & TKB)',
-      color: 'border-l-amber-500 text-amber-400 bg-amber-500/5',
-      badge: 'Active & Integrated',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-    },
-    {
-      id: 'dcr',
-      title: 'DCR System',
-      desc: 'Document Change Request - Configuration Management',
-      color: 'border-l-blue-500 text-blue-400 bg-blue-500/5',
-      badge: 'Active & Integrated',
-      badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-    },
-    {
-      id: 'ncr',
-      title: 'NCR Report',
-      desc: 'Non-Conformance Report - Quality Assurance Control Log',
-      color: 'border-l-slate-500 text-slate-400 bg-slate-500/5',
-      badge: 'Active & Integrated',
-      badgeColor: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+      id: 'krde_makpar',
+      code: 'MODUL SISTEM 02',
+      title: 'KRDE MAKPAR',
+      subtitle: 'KA Makassar - Parepare',
+      desc: 'Logbook Kejadian & Tracking Failure Analysis System untuk operasional dan pemeliharaan jalur Makassar - Parepare.',
+      badge: 'TERINTEGRASI',
+      badgeBg: 'bg-sky-100 text-sky-800 border-sky-300',
+      borderHover: 'hover:border-sky-500 hover:shadow-sky-100',
+      accentColor: 'bg-sky-500',
+      buttonBg: 'bg-slate-900 hover:bg-sky-600 text-white',
+      icon: (
+        <svg className="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      )
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans p-6 md:p-12 select-none relative overflow-hidden flex flex-col justify-between">
-      {/* Background Glow Ambient */}
-      <div className="absolute top-[-30%] left-[-10%] w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-30%] right-[-10%] w-[600px] h-[600px] bg-red-600/5 rounded-full blur-[150px] pointer-events-none" />
-
-      {/* TOP BAR / HEADER PORTAL */}
-      <div className="w-full max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6 relative z-10">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase">System Operational Control</span>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-900 selection:text-white">
+      
+      {/* 1. TOP NAVBAR RESMI */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
+          
+          {/* Logo INKA & Danantara Tanpa Box (Original & Jelas) */}
+          <div className="flex items-center gap-4">
+            <img 
+              src="/logo-inka.png" 
+              alt="PT INKA (Persero)" 
+              className="h-8 w-auto object-contain" 
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div className="h-6 w-[1px] bg-slate-300" />
+            <img 
+              src="/logo-danantara.png" 
+              alt="Danantara Indonesia" 
+              className="h-23 w-auto object-contain" 
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
           </div>
-          <h1 className="text-2xl font-black tracking-wider text-white uppercase">
-            Portal DMTP
-          </h1>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">
-            PT INKA (Persero) Enterprise Application Module Dashboard
-          </p>
+
+          {/* Nav Info & Logout */}
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col text-right">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Portal Monitoring</span>
+              <span className="text-xs font-bold text-slate-700">PT INKA (Persero)</span>
+            </div>
+            
+            <button 
+              onClick={onLogout}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-300 hover:border-red-300 text-xs font-bold px-3.5 py-1.5 rounded transition-all cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Keluar Sesi</span>
+            </button>
+          </div>
+
+        </div>
+      </header>
+
+      {/* 2. BODY UTAMA CONTAINER */}
+      <main className="max-w-6xl mx-auto px-6 py-8 flex-1 flex flex-col justify-center w-full">
+        
+        {/* Banner Selamat Datang */}
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-lg p-6 mb-6 shadow-md border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[10px] font-bold tracking-widest text-slate-300 uppercase mb-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Quality Assurance & Operational Control
+            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight">
+              Portal Failure Reporting System
+            </h1>
+            <p className="text-xs text-slate-300 mt-1 max-w-xl">
+              Sistem resmi pengawasan operasional, pencatatan logbook kejadian, dan analisis kegagalan sarana kereta api.
+            </p>
+          </div>
+
+          <div className="hidden md:block text-right border-l border-slate-700 pl-6">
+            <p className="text-[10px] font-mono text-slate-400">STATUS SERVIS</p>
+            <p className="text-xs font-bold text-emerald-400">NORMAL & ACTIVE</p>
+          </div>
         </div>
 
-        {/* LOGOUT ACTUATOR */}
-        <button 
-          onClick={onLogout}
-          className="bg-slate-800 hover:bg-red-950/40 hover:text-red-400 hover:border-red-950/60 text-slate-300 text-[10px] font-black px-4 py-2 rounded border border-slate-700 uppercase tracking-widest transition-all shadow active:scale-[0.98]"
-        >
-          🔒 Exit Session
-        </button>
-      </div>
+        {/* CARDS MODUL (Padat & Resmi Ala Instansi) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {modules.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => onSelectMenu(item.id)}
+              className={`group bg-white border border-slate-200 ${item.borderHover} rounded-lg p-5 transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col justify-between relative overflow-hidden`}
+            >
+              {/* Line Aksen Warna */}
+              <div className={`absolute top-0 left-0 right-0 h-1 ${item.accentColor}`} />
 
-      {/* MAIN GRID MODULE SELECTOR */}
-      <div className="w-full max-w-6xl mx-auto my-auto py-12 grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-        {menuList.map((menu) => (
-          <div 
-            key={menu.id}
-            onClick={() => onSelectMenu(menu.id)}
-            className={`group border border-slate-800 border-l-4 ${menu.color} rounded-xl p-6 shadow-xl cursor-pointer transition-all duration-300 hover:border-slate-600 hover:bg-slate-800/40 hover:-translate-y-1 relative`}
-          >
-            {/* Status Badge */}
-            <div className={`absolute top-4 right-4 text-[9px] font-black uppercase px-2 py-0.5 rounded border ${menu.badgeColor}`}>
-              {menu.badge}
+              <div>
+                {/* Header Card */}
+                <div className="flex items-center justify-between mb-3 pt-1">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded bg-slate-100 border border-slate-200">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider block">
+                        {item.code}
+                      </span>
+                      <h2 className="text-lg font-bold text-slate-900 group-hover:text-blue-900 transition-colors uppercase leading-tight">
+                        {item.title}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded border tracking-wider ${item.badgeBg}`}>
+                    {item.badge}
+                  </span>
+                </div>
+
+                {/* Subtitle & Desc */}
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                  {item.subtitle}
+                </p>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+
+              {/* Action Button */}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 group-hover:text-slate-700">
+                  Akses Modul Pengawasan
+                </span>
+                <button className={`px-3.5 py-1.5 rounded text-xs font-bold tracking-wider shadow-sm flex items-center gap-1.5 ${item.buttonBg}`}>
+                  <span>BUKA MODUL</span>
+                  <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                </button>
+              </div>
+
             </div>
+          ))}
+        </div>
 
-            {/* Content */}
-            <h3 className="text-lg font-black text-white uppercase tracking-wide mb-1 group-hover:text-red-400 transition-colors">
-              {menu.title}
-            </h3>
-            <p className="text-xs text-slate-400 font-medium leading-relaxed max-w-[85%]">
-              {menu.desc}
-            </p>
+      </main>
 
-            {/* Action Indicator */}
-            <div className="mt-6 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white transition-colors">
-              Launch Module <span className="transition-transform group-hover:translate-x-1">→</span>
-            </div>
+      {/* 3. FOOTER RESMI INSTANSI */}
+      <footer className="bg-white border-t border-slate-200 py-3 text-slate-500 text-[11px]">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="font-semibold text-slate-600">
+            Hak Cipta © 2026 PT INKA (Persero) — Divisi Quality Assurance
           </div>
-        ))}
-      </div>
+          <div className="text-[10px] font-mono text-slate-400">
+            Sistem Informasi Operasional Terintegrasi
+          </div>
+        </div>
+      </footer>
 
-      {/* FOOTER METRICS */}
-      <div className="w-full max-w-6xl mx-auto border-t border-slate-900 pt-6 flex flex-col sm:flex-row justify-between text-[10px] font-bold text-slate-600 uppercase tracking-widest relative z-10">
-        <div>Authorized personnel only • Core Data Sync v2.0</div>
-        <div className="mt-1 sm:mt-0">© 2026 PT INKA (Persero) • Quality Assurance</div>
-      </div>
     </div>
   );
 }

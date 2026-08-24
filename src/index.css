@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+/* Tambahan agar aman dan pas di layar HP */
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: #f1f5f9; /* Warna dasar slate-100 */
+}

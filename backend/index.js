@@ -8,129 +8,135 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrdsHVGkRiZGXuOtxSCwlK3BgRurY-hk_5AaoEtDWcy05R9pVoFHexR518bOiD7B9R1Q/exec';
+// 📌 MAPPING URL APPS SCRIPT (KRDE BIAS & KRDE MAKPAR)
+const APPS_SCRIPT_URLS = {
+    'BIAS': 'https://script.google.com/macros/s/AKfycbywTORuNhXWrWNsnVzjgtNn8TGfguAM9Zv5TkbrQ3fN80ve3TAhz5t0OZHHvPGTCicc9w/exec',
+    'MAKPAR': 'https://script.google.com/macros/s/AKfycbxiaLkhugrXPNd8u16d1pJdj59dhHZdB0OChkizrpu4peaC9YTCoK_wqyPNLU2AhCgUeA/exec'
+};
+
+// Helper menentukan URL Apps Script berdasarkan target sheet / modul
+const getScriptUrl = (targetSheet) => {
+    const sheetUpper = (targetSheet || '').toUpperCase();
+    if (sheetUpper.includes('MAKPAR')) {
+        return APPS_SCRIPT_URLS['MAKPAR'];
+    }
+    return APPS_SCRIPT_URLS['BIAS']; // Default ke BIAS
+};
 
 const cleanStr = (val) => (val !== undefined && val !== null ? String(val).trim() : '');
 
-// Root Endpoint untuk Cek Kesehatan Server
+// Helper ekstraksi data dari berbagai format respon Apps Script
+const extractRows = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data.value)) return data.value;
+    if (Array.isArray(data.result)) return data.result;
+    if (data.status === "success" && Array.isArray(data.data)) return data.data;
+    return [];
+};
+
 app.get('/', (req, res) => {
-    res.send('🚀 Backend Multi-Dashboard PT INKA jalan dengan lancar di Vercel!');
+    res.send('🚀 Backend Multi-Dashboard PT INKA (KRDE BIAS & MAKPAR) Aktif!');
 });
 
 // 1. ENDPOINT DATA UTAMA
 app.get('/api/sheets-data', async (req, res) => {
-    const targetSheet = req.query.targetSheet ? req.query.targetSheet.toUpperCase() : 'FRACAS';
+    const rawTarget = req.query.targetSheet || req.query.sheet || 'VRB';
+    const targetUrl = getScriptUrl(rawTarget);
     
     try {
-        const response = await axios.get(`${GOOGLE_SCRIPT_URL}?targetSheet=${targetSheet}`, { 
-            maxRedirects: 5,
-            headers: { 'Accept': 'application/json' }
+        const response = await axios.get(targetUrl, { 
+            params: {
+                sheet: rawTarget,
+                targetSheet: rawTarget,
+                action: 'getData'
+            },
+            maxRedirects: 10,
+            timeout: 20000, // Timeout dinaikkan ke 20d agar aman saat Cold Start Apps Script
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Accept': 'application/json'
+            }
         });
-        
-        const rawRows = response.data && response.data.success ? response.data.data : [];
 
-        res.status(200).json({
+        console.log(`[SUCCESS] Fetching Data Target: ${rawTarget}`);
+        
+        const rawRows = extractRows(response.data);
+
+        return res.status(200).json({
             success: true,
-            nama_tab: targetSheet,
+            nama_tab: rawTarget,
             total: rawRows.length,
             data: rawRows
         });
     } catch (error) {
-        console.error(`Error pada Endpoint Data (${targetSheet}):`, error.message);
-        res.status(500).json({ success: false, data: [] });
+        console.error(`[ERROR] (${rawTarget}):`, error.message);
+        return res.status(200).json({ 
+            success: false, 
+            message: "Gagal mengambil data dari Apps Script", 
+            error: error.message,
+            data: [] 
+        });
     }
 });
 
-// 2. ENDPOINT DROPDOWN FILTERS UNTUK SEMUA TAB
+// 2. ENDPOINT DROPDOWN FILTERS
 app.get('/api/filters', async (req, res) => {
-    const targetSheet = req.query.targetSheet ? req.query.targetSheet.toUpperCase() : 'DCR';
+    const rawTarget = req.query.targetSheet || req.query.sheet || 'VRB';
+    const targetUrl = getScriptUrl(rawTarget);
 
     try {
-        const response = await axios.get(`${GOOGLE_SCRIPT_URL}?targetSheet=${targetSheet}`, { 
-            maxRedirects: 5,
-            headers: { 'Accept': 'application/json' }
+        const response = await axios.get(targetUrl, { 
+            params: {
+                sheet: rawTarget,
+                targetSheet: rawTarget,
+                action: 'getData'
+            },
+            maxRedirects: 10,
+            timeout: 20000,
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Accept': 'application/json'
+            }
         });
         
-        const rawRows = response.data && response.data.success ? response.data.data : [];
+        const rawRows = extractRows(response.data);
 
-        // Penampung nilai unik tiap tab
-        const sets = {};
+        const sets = {
+            trainset: new Set(),
+            noKereta: new Set(),
+            status: new Set()
+        };
 
-        if (targetSheet === 'DCR') {
-            sets.namaProyek = new Set();
-            sets.pengirim = new Set();
-            sets.penerima = new Set();
-            sets.statusDcr = new Set();
+        rawRows.forEach((item) => {
+            if (Array.isArray(item)) {
+                if (item[1]) sets.trainset.add(cleanStr(item[1]));
+                if (item[2]) sets.noKereta.add(cleanStr(item[2]));
+                if (item[9] || item[7]) sets.status.add(cleanStr(item[9] || item[7]));
+            } else if (typeof item === 'object' && item !== null) {
+                const ts = cleanStr(item["TS"] || item["Trainset"] || item["TRAINSET"] || item["TS/TRAINSET"]);
+                const nk = cleanStr(item["NO KERETA"] || item["No Kereta"] || item["KERETA"]);
+                const st = cleanStr(item["STATUS TL"] || item["Status TL"] || item["STATUS"] || item["Status"]);
 
-            rawRows.forEach(item => {
-                const pr = cleanStr(item["Nama Proyek"] || item["Proyek"]);
-                const pg = cleanStr(item["Pengirim"]);
-                const pn = cleanStr(item["Penerima"]);
-                const st = cleanStr(item["Status DCR"] || item["Status"]);
-                if (pr) sets.namaProyek.add(pr);
-                if (pg) sets.pengirim.add(pg);
-                if (pn) sets.penerima.add(pn);
-                if (st) sets.statusDcr.add(st);
-            });
-        } else if (targetSheet === 'NCR') {
-            sets.projek = new Set();
-            sets.unitTujuan = new Set();
-            sets.groupInspektor = new Set();
-            sets.status = new Set();
-
-            rawRows.forEach(item => {
-                const pr = cleanStr(item["Nama Proyek"] || item["Projek"]);
-                const ut = cleanStr(item["Unit Tujuan"] || item["Seksi/Unit"]);
-                const gi = cleanStr(item["Group Inspektor"] || item["Inspektor QC"]);
-                const st = cleanStr(item["Status NCR"] || item["Status"]);
-                if (pr) sets.projek.add(pr);
-                if (ut) sets.unitTujuan.add(ut);
-                if (gi) sets.groupInspektor.add(gi);
-                if (st) sets.status.add(st);
-            });
-        } else if (targetSheet === 'VRB') {
-            // UPDATED: Filter Khusus Portal Pemeriksaan Nomor Komponen (PNKK & TKB)
-            sets.trainset = new Set();
-            sets.noLambung = new Set();
-            sets.carType = new Set();
-            sets.underframe = new Set();
-
-            rawRows.forEach(item => {
-                const getVal = (...keys) => {
-                    for (let k of keys) {
-                        if (item[k] !== undefined && item[k] !== null && item[k] !== '') return item[k];
-                    }
-                    return '';
-                };
-
-                const ts = cleanStr(getVal('Trainset', 'TRAINSET', 'TS', 'Train Set'));
-                const nl = cleanStr(getVal('No Lambung', 'No. Lambung', 'NO LAMBUNG'));
-                const ct = cleanStr(getVal('Car Type', 'CAR TYPE', 'Tipe Kereta'));
-                const uf = cleanStr(getVal('Underframe', 'UNDERFRAME', 'Underframe Number'));
-
-                if (ts) sets.trainset.add(ts);
-                if (nl) sets.noLambung.add(nl);
-                if (ct) sets.carType.add(ct);
-                if (uf) sets.underframe.add(uf);
-            });
-        }
+                if (ts && ts !== '-') sets.trainset.add(ts);
+                if (nk && nk !== '-') sets.noKereta.add(nk);
+                if (st && st !== '-') sets.status.add(st);
+            }
+        });
 
         const resultObj = {};
         Object.keys(sets).forEach(k => {
             resultObj[k] = Array.from(sets[k]).sort();
         });
 
-        res.status(200).json({ success: true, data: resultObj });
+        return res.status(200).json({ success: true, data: resultObj });
     } catch (error) {
-        console.error("Error Filter:", error.message);
-        res.status(500).json({ success: false, data: {} });
+        console.error("[ERROR Filter]:", error.message);
+        return res.status(200).json({ success: false, data: { trainset: [], noKereta: [], status: [] } });
     }
 });
 
-// Khusus Local Machine (Laptop)
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => console.log(`🚀 Server Multi-Dashboard PT INKA Aktif di Port ${PORT}`));
-}
+app.listen(PORT, () => console.log(`🚀 Server Aktif di Port ${PORT}`));
 
-// WAJIB UNTUK VERCEL DEPLOYMENT
 module.exports = app;

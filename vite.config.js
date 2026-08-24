@@ -1,11 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite' // <-- 1. Pastikan ada baris ini
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(), // <-- 2. Pastikan fungsi ini dipanggil di sini
+    tailwindcss(),
   ],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react/') || id.includes('react-dom/')) return 'vendor-react';
+            if (id.includes('@tanstack')) return 'vendor-query';
+            if (id.includes('axios')) return 'vendor-axios';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
 })

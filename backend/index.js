@@ -10,7 +10,7 @@ app.use(express.json());
 
 // 📌 MAPPING URL APPS SCRIPT (KRDE BIAS & KRDE MAKPAR)
 const APPS_SCRIPT_URLS = {
-    'BIAS': 'https://script.google.com/macros/s/AKfycbywTORuNhXWrWNsnVzjgtNn8TGfguAM9Zv5TkbrQ3fN80ve3TAhz5t0OZHHvPGTCicc9w/exec',
+    'BIAS': 'https://script.google.com/macros/s/AKfycbxado9djZnL2RDF_gSa4PdK3Am3MDqxCyuwA3vU5H2ypDhnOLJIzMEV7VM1lriSCVihtQ/exec',
     'MAKPAR': 'https://script.google.com/macros/s/AKfycbxiaLkhugrXPNd8u16d1pJdj59dhHZdB0OChkizrpu4peaC9YTCoK_wqyPNLU2AhCgUeA/exec'
 };
 

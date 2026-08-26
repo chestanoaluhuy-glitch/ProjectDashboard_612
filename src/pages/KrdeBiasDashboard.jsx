@@ -29,15 +29,15 @@ const getPropValue = (obj, targetKeys) => {
   return '-';
 };
 
-// Fetcher Data VRB KRDE BIAS (Sudah diperbaiki agar support Vercel & Localhost)
+// Fetcher Data VRB KRDE BIAS (Langsung tembak Web App Apps Script tanpa error 404 Vercel)
 const fetchKrdeBiasData = async () => {
-  const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
-  const res = await fetch(`${baseUrl}/api/sheets-data?targetSheet=VRB`);
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxado9djZnL2RDF_gSa4PdK3Am3MDqxCyuwA3vU5H2ypDhnOLJIzMEV7VM1lriSCVihtQ/exec';
+  const res = await fetch(`${APPS_SCRIPT_URL}?sheet=VRB&targetSheet=VRB&action=getData`);
   
   if (!res.ok) throw new Error('Gagal mengambil data VRB KRDE BIAS');
   
   const json = await res.json();
-  const rawRows = Array.isArray(json) ? json : (json.data || []);
+  const rawRows = Array.isArray(json) ? json : (json.data || json.result || []);
 
   return rawRows.map((row, index) => {
     if (Array.isArray(row)) {
